@@ -1,7 +1,7 @@
 """Read and clean the UCSF Free-surfer data"""
 
 import pandas as pd
-import StringIO
+from read import read
 
 BASE_DIR = '/phobos/alzheimers/adni/'
 
@@ -13,8 +13,8 @@ DATA_51_FILE = BASE_DIR + 'UCSFFSX51_08_01_14.csv'
 DICTIONARY_FILE = BASE_DIR + 'UCSFFSX_DICT_08_01_14.csv'
 DATA_FILE = BASE_DIR + 'UCSFFSX_08_01_14.csv'
 
-FSX_51 = pd.read_csv(StringIO.StringIO(open(DATA_51_FILE)
-                                       .read().replace('\x00', '')))
+FSX_51 = read(DATA_51_FILE)
+FSX = read(DATA_FILE)
 
 def find_unique(src, target):
     """

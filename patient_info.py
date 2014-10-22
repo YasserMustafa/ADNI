@@ -6,7 +6,7 @@ belonging to a particular class (AD/CN/MCIc/MCInc)
 """
 
 import pandas as pd
-import StringIO
+from read import read
 
 BASE_DIR = '/phobos/alzheimers/adni/'
 
@@ -22,14 +22,10 @@ ARM_FILE = BASE_DIR + 'ARM.csv'
 # data file for the Registries
 REG_FILE = BASE_DIR + 'REGISTRY.csv'
 
-DXSUM = pd.read_csv(StringIO.StringIO(open(DXSUM_FILE)
-                                      .read().replace('\x00', '')))
-DICT = pd.read_csv(StringIO.StringIO(open(DATADIC_FILE)
-                                     .read().replace('\x00', '')))
-ARM = pd.read_csv(StringIO.StringIO(open(ARM_FILE)
-                                    .read().replace('\x00', '')))
-REG = pd.read_csv(StringIO.StringIO(open(REG_FILE)
-                                    .read().replace('\x00', '')))
+DXSUM = read(DXSUM_FILE)
+DICT = read(DATADIC_FILE)
+ARM = read(ARM_FILE)
+REG = read(REG_FILE)
 
 # make the ADNI1 variables compatible with those in ADNIGO/2
 DXSUM.loc[(DXSUM['DXCONV'] == 0) &
@@ -68,8 +64,8 @@ EMCI = 3
 LMCI = 4
 AD = 5
 
-BASE_DATA = DXARM[(DXARM['VISCODE2'] == 'bl') &
-                  DXARM['ENROLLED'].isin([1, 2, 3])]
+BASE_DATA = DXARM.loc[(DXARM['VISCODE2'] == 'bl') &
+                      DXARM['ENROLLED'].isin([1, 2, 3])]
 BASE_DATA.loc[(BASE_DATA['DXCHANGE'].isin([1, 7, 9])) &
               ~(BASE_DATA['ARM'] == 11), 'DXBASELINE'] = NORMAL
 BASE_DATA.loc[(BASE_DATA['DXCHANGE'].isin([1, 7, 9])) &
@@ -86,22 +82,3 @@ DXARM_REG = pd.merge(DXARM, REG[['RID', 'Phase', 'VISCODE', 'VISCODE2',
                                  'EXAMDATE', 'PTSTATUS', 'RGCONDCT',
                                  'RGSTATUS', 'VISTYPE']],
                      on=['RID', 'Phase', 'VISCODE', 'VISCODE2'])
-
-class Data(object):
-    """Class to hold the subsets of a dataset"""
-
-    def __init__(self, data):
-        """Initialize the sub-dict. for this set of features"""
-
-        self.data = data
-        try:
-            self.sub_dx = DXSUM[DXSUM['RID'].isin(data.RID)]
-        except AttributeError:
-            print 'Data frame %s had no attribute RID!' % data.__name__
-            raise
-
-    def filter_bl_ad(self):
-        """Find all baseline rows that were AD"""
-        rid = DXARM[(DXARM['VISCODE2'] == 'bl') &
-                    (DXARM['DXBASELINE'] == AD)].RID
-        
