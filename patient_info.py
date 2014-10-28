@@ -1,5 +1,6 @@
 """
 Read in the data dictionary as well as the diagnostic summary.
+
 This module should be used to filter dataframes to get patients
 belonging to a particular class (AD/CN/MCIc/MCInc)
 
@@ -81,4 +82,38 @@ DXARM = pd.merge(DXARM, BASE_DATA[['RID', 'DXBASELINE']], on='RID')
 DXARM_REG = pd.merge(DXARM, REG[['RID', 'Phase', 'VISCODE', 'VISCODE2',
                                  'EXAMDATE', 'PTSTATUS', 'RGCONDCT',
                                  'RGSTATUS', 'VISTYPE']],
-                     on=['RID', 'Phase', 'VISCODE', 'VISCODE2'])
+                     on=['RID', 'Phase', 'VISCODE'])
+
+def get_baseline_classes(data, phase):
+    """
+    Keyword Arguments:
+    data -- The data to segment
+    """
+    # store patients in each group
+    dx_base = {}
+
+    # RIDs of patients we want to consider
+    # first get all patients belong to the correct phase
+    # and having baseline measurements
+    # then only consider those that have measurements in the data matrix
+    idx = ((DXARM_REG['Phase'] == phase) &
+           (DXARM_REG['VISCODE'] == 'bl') &
+           (DXARM_REG['RGCONDCT'] == 1) &
+           (DXARM_REG['RID'].isin(data['RID'])))
+    rid = DXARM_REG.loc[idx, 'RID']
+
+    for patient in rid:
+        try:
+            dx_baseline = DXARM_REG[DXARM_REG['RID'] == patient].\
+                          DXBASELINE.values[0]
+            if dx_baseline == 1 or dx_baseline == 2:
+                dx_base[patient] = 'nl' # normal control
+            elif dx_baseline == 3 or dx_baseline == 4:
+                dx_base[patient] = 'mci' # mild cognitive impairment
+            elif dx_baseline == 5:
+                dx_base[patient] = 'ad' # alzheimer's disease
+        except IndexError:
+            print 'WARNING: No diagnostic info. for RID=%d'%patient
+
+    return dx_base
+

@@ -15,12 +15,6 @@ FDG = pd.read_csv(StringIO.StringIO(open(FDG_FILE)
 AV = pd.read_csv(StringIO.StringIO(open(AV_FILE)
                                    .read().replace('\x00', '')))
 
-RID = FDG.RID.unique()
-
-for patient in RID:
-    dx = pi.DXARM_REG[pi.DXARM_REG.RID == patient]
-    fdg = FDG[FDG.RID == patient]
-
 NORMAL = 1
 SMC = 2
 EMCI = 3
