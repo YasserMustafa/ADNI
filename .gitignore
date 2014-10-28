@@ -2,3 +2,6 @@
 *.out
 *.log
 *.pyc
+report/
+!report/report.tex
+!report/report.pdf
