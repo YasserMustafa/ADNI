@@ -9,6 +9,7 @@
 \usepackage{graphicx}
 \usepackage{caption}
 \usepackage{subcaption}
+\usepackage{multirow}
 
 \renewcommand\thesubsection{\thesection.\arabic{subsection}}
 \renewcommand\thesubsubsection{\thesubsection.\alph{subsubsection}}
@@ -67,5 +68,113 @@ Below is a chart summarizing the study design:
 
 The table below summarizes the number for the \textbf{ADNI1} cohort
 only, for the MRI and PET modalities.
+
+\begin{tabular}[H]{c | c | c | c | c | c}
+  & NL & \multicolumn{3}{|c|}{MCI} & AD\\
+\hline
+& & MCI-c & MCI-nc & MCI-rev &\\
+\hline
+FDG-PET & 157 & 119 & 113 & 15 & 98\\
+MRI & 218 & 175 & 161 & 14 & 164
+\end{tabular}
+
+\section{SVMs on classification task}
+\label{sec:svm}
+
+\subsection{NL vs AD}
+\label{sec:nl-vs-ad}
+
+\subsubsection{MRI}
+\label{sec:mri}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{nl-ad/mri-coarse-accuracy.png}
+  \caption{\label{figaa:design}Hyperparameter search for MRI images
+    optimizing for classification accuracy}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{nl-ad/mri-coarse-auroc.png}
+  \caption{\label{fig:dbbesign}Hyperparameter search for MRI images
+    optimizing for AUROC}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{nl-ad/mri-acc.png}
+  \caption{\label{fig:desssign}Classification accuracy (test set) for MRI images}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{nl-ad/mri-auroc.png}
+  \caption{\label{fig:desigggn}AUROC for MRI images (test set)}
+\end{figure}
+
+\subsubsection{PET}
+\label{sec:pet}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{nl-ad/pet-coarse-accuracy.png}
+  \caption{\label{uufig:design}Hyperparameter search for PET images
+    optimizing for classification accuracy}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{nl-ad/pet-coarse-auroc.png}
+  \caption{\label{fiqeg:design}Hyperparameter search for PET images
+    optimizing for AUROC}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{nl-ad/pet-acc.png}
+  \caption{\label{fig:fsdhvdesign}Classification accuracy (test set) for PET images}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{nl-ad/pet-auroc.png}
+  \caption{\label{fig:design}AUROC for PET images (test set)}
+\end{figure}
+
+\subsubsection{CONCAT}
+\label{sec:cat}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{nl-ad/concat-acc.png}
+  \caption{\label{fig:desigffhn}Classification accuracy (test set) for PET images}
+\end{figure}
+
+\subsection{NL vs MCI}
+
+\subsubsection{MRI}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{nl-mci/mri-accuracy.png}
+  \caption{\label{desigan}Classification accuracy (test set) for MRI images}
+\end{figure}
+
+\subsubsection{PET}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{nl-mci/pet-accuracy.png}
+  \caption{\label{afig:design}Classification accuracy (test set) for MRI images}
+\end{figure}
+
+\subsubsection{CONCAT}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{nl-mci/concat-accuracy.png}
+  \caption{\label{fffpig:design}Classification accuracy (test set) for MRI images}
+\end{figure}
 
 \end{document}

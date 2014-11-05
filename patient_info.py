@@ -28,25 +28,35 @@ DICT = read(DATADIC_FILE)
 ARM = read(ARM_FILE)
 REG = read(REG_FILE)
 
+NL = 1
+MCI = 2
+AD = 3
+NL_MCI = 4
+MCI_AD = 5
+NL_AD = 6
+MCI_NL = 7
+AD_MCI = 8
+AD_NL = 9
+
 # make the ADNI1 variables compatible with those in ADNIGO/2
 DXSUM.loc[(DXSUM['DXCONV'] == 0) &
-          (DXSUM['DXCURREN'] == 1), 'DXCHANGE'] = 1
+          (DXSUM['DXCURREN'] == 1), 'DXCHANGE'] = NL
 DXSUM.loc[(DXSUM['DXCONV'] == 0) &
-          (DXSUM['DXCURREN'] == 2), 'DXCHANGE'] = 2
+          (DXSUM['DXCURREN'] == 2), 'DXCHANGE'] = MCI
 DXSUM.loc[(DXSUM['DXCONV'] == 0) &
-          (DXSUM['DXCURREN'] == 3), 'DXCHANGE'] = 3
+          (DXSUM['DXCURREN'] == 3), 'DXCHANGE'] = AD
 DXSUM.loc[(DXSUM['DXCONV'] == 1) &
-          (DXSUM['DXCONTYP'] == 1), 'DXCHANGE'] = 4
+          (DXSUM['DXCONTYP'] == 1), 'DXCHANGE'] = NL_MCI
 DXSUM.loc[(DXSUM['DXCONV'] == 1) &
-          (DXSUM['DXCONTYP'] == 3), 'DXCHANGE'] = 5
+          (DXSUM['DXCONTYP'] == 3), 'DXCHANGE'] = MCI_AD
 DXSUM.loc[(DXSUM['DXCONV'] == 1) &
-          (DXSUM['DXCONTYP'] == 2), 'DXCHANGE'] = 6
+          (DXSUM['DXCONTYP'] == 2), 'DXCHANGE'] = NL_AD
 DXSUM.loc[(DXSUM['DXCONV'] == 2) &
-          (DXSUM['DXREV'] == 1), 'DXCHANGE'] = 7
+          (DXSUM['DXREV'] == 1), 'DXCHANGE'] = MCI_NL
 DXSUM.loc[(DXSUM['DXCONV'] == 2) &
-          (DXSUM['DXREV'] == 2), 'DXCHANGE'] = 8
+          (DXSUM['DXREV'] == 2), 'DXCHANGE'] = AD_MCI
 DXSUM.loc[(DXSUM['DXCONV'] == 2) &
-          (DXSUM['DXREV'] == 3), 'DXCHANGE'] = 9
+          (DXSUM['DXREV'] == 3), 'DXCHANGE'] = AD_NL
 
 # merge ARM data with DXSUM. ADNI Training slides 2
 DXARM = pd.merge(DXSUM[['RID', 'Phase', 'VISCODE', 'VISCODE2', 'DXCHANGE']],
@@ -91,6 +101,10 @@ def get_baseline_classes(data, phase):
     """
     # store patients in each group
     dx_base = {}
+    conv = {}
+    conv['prog'] = []
+    conv['stable'] = []
+    conv['rev'] = []
 
     # RIDs of patients we want to consider
     # first get all patients belong to the correct phase
@@ -104,16 +118,22 @@ def get_baseline_classes(data, phase):
 
     for patient in rid:
         try:
-            dx_baseline = DXARM_REG[DXARM_REG['RID'] == patient].\
-                          DXBASELINE.values[0]
+            info = DXARM_REG[DXARM_REG['RID'] == patient]
+            dx_baseline = info.DXBASELINE.values[0]
+            change = info.DXCHANGE
             if dx_baseline == 1 or dx_baseline == 2:
                 dx_base[patient] = 'nl' # normal control
             elif dx_baseline == 3 or dx_baseline == 4:
                 dx_base[patient] = 'mci' # mild cognitive impairment
+                if MCI_AD in change.values:
+                    conv['prog'].append(patient)
+                elif MCI_NL in change.values:
+                    conv['rev'].append(patient)
+                elif MCI in change.values:
+                    conv['stable'].append(patient)
             elif dx_baseline == 5:
                 dx_base[patient] = 'ad' # alzheimer's disease
         except IndexError:
             print 'WARNING: No diagnostic info. for RID=%d'%patient
 
-    return dx_base
-
+    return dx_base, conv
