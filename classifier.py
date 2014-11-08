@@ -9,7 +9,7 @@ import numpy as np
 from random import shuffle
 import matplotlib.pyplot as plt
 
-from sklearn import cross_validation, svm, linear_model
+from sklearn import cross_validation, svm
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.metrics import roc_curve, auc
@@ -17,9 +17,9 @@ from sklearn.learning_curve import validation_curve
 
 import sys
 
-LABELS = {'nl':1, 'mci':2, 'ad':3}
+LABELS = {'NL':1, 'MCI-C':2, 'MCI-NC':3, 'MCI-REV':4, 'AD':5}
 
-def generate_features_fdg_bl():
+def generate_features_fdg_bl(show_stats=False):
     """
     Generate a feature vector for each sample of the fdg data
     """
@@ -27,11 +27,15 @@ def generate_features_fdg_bl():
     # generate feature name
     data['REGION'] = data['ROINAME'] + data['ROILAT']
     # get subjects with baseline data
-    dx_base, conv = pi.get_baseline_classes(data, 'ADNI1')
+    dx_base = pi.get_baseline_classes(data, 'ADNI1')
     features = ['MEAN', 'MEDIAN', 'MODE', 'MIN', 'MAX', 'STDEV']
     x = []
     y = []
     rid = []
+
+    counts = {}
+    for label in LABELS.keys():
+        counts[label] = 0
 
     for patient in dx_base.keys():
         readings = data[(data['RID'] == patient) &
@@ -44,18 +48,25 @@ def generate_features_fdg_bl():
                 [features].values[0]
             x.append(patient_features)
             y.append(LABELS[dx_base[patient]])
+            counts[dx_base[patient]] += 1
             rid.append(patient)
+
+    if show_stats:
+        for label, count in counts.items():
+            print label, ": ", count
 
     return np.array(x), np.array(y), rid
 
-def generate_features_mri_bl():
+def generate_features_mri_bl(show_stats=False):
     """
     Generate a feature vector for each patient with a baseline MRI scan
     """
     data = mri.FSX
+    # use only patients with completed scans and passed quality checks
+    #data = data[(data['STATUS'] == 'complete') & (data['OVERALLQC'] == 'Pass')]
     # use only patients with completed scans
-    data = data[(data['STATUS'] == 'complete') & (data['OVERALLQC'] == 'Pass')]
-    dx_base, conv = pi.get_baseline_classes(data, 'ADNI1')
+    data = data[data['STATUS'] == 'complete']
+    dx_base = pi.get_baseline_classes(data, 'ADNI1')
     features = [col for col in data.columns
                 if col[:2] == 'ST' and\
                 not col == 'STATUS' and\
@@ -63,6 +74,11 @@ def generate_features_mri_bl():
     x = []
     y = []
     rid = []
+
+    counts = {}
+    for label in LABELS.keys():
+        counts[label] = 0
+
     for patient in dx_base.keys():
         # passively reject more than one scan for the same patient
         readings = data[(data['RID'] == patient) &
@@ -74,11 +90,16 @@ def generate_features_mri_bl():
             patient_features = (readings[features]/icv).values[0]
             x.append(patient_features)
             y.append(LABELS[dx_base[patient]])
+            counts[dx_base[patient]] += 1
             rid.append(patient)
+
+    if show_stats:
+        for label, count in counts.items():
+            print label, ": ", count
 
     return np.array(x), np.array(y), rid
 
-def generate_features_concat():
+def generate_features_concat(show_stats=False):
     """
     Generate a feature vector that is the concatenation of the two modalities
     """
@@ -87,18 +108,29 @@ def generate_features_concat():
     data_fdg = generate_features_fdg_bl()
     common = list(set(data_mri[2]).intersection(data_fdg[2]))
 
-    X = []
-    Y = []
+    x = []
+    y = []
+
+    counts = {}
+    for label in LABELS.keys():
+        counts[label] = 0
 
     for patient in common:
         mri_idx = data_mri[2].index(patient)
         fdg_idx = data_fdg[2].index(patient)
-        X.append(np.r_[data_mri[0][mri_idx], data_fdg[0][fdg_idx]])
-        assert (data_mri[1][mri_idx] == data_fdg[1][fdg_idx]), \
+        x.append(np.r_[data_mri[0][mri_idx], data_fdg[0][fdg_idx]])
+        class_mri = data_mri[1][mri_idx]
+        class_fdg = data_fdg[1][fdg_idx]
+        assert (class_mri == class_fdg), \
             'Error in corresponding labels'
-        Y.append(data_fdg[1][fdg_idx])
+        y.append(class_fdg)
+        counts[LABELS.keys()[LABELS.values().index(class_fdg)]] += 1
 
-    return np.array(X), np.array(Y)
+    if show_stats:
+        for label, count in counts.items():
+            print label, ": ", count
+
+    return np.array(x), np.array(y)
 
 def predict(clf, training, testing):
     """
@@ -141,60 +173,61 @@ def generate_roc_plot(fpr, tpr, title):
     plt.xlabel('False positive rate')
     plt.ylabel('True positive rate')
 
-def classify(x, y, modality):
+def classify(x, y, modality, pos_class='NL', neg_class='AD',
+             make_prediction=True, plot_roc=False, plot_val=False):
     """
     Classify patients based on FDG-PET features
     """
-    two_class = True
-    classes = ['mci', 'ad']
-    pos_label = LABELS['nl'] if 'nl' in classes else LABELS['mci']
-    neg_label = LABELS['ad'] if 'ad' in classes else LABELS['mci']
-    if two_class:
-        first = [i for i in xrange(len(y)) if y[i] == LABELS[classes[0]]]
-        second = [i for i in xrange(len(y)) if y[i] == LABELS[classes[1]]]
-        print "Positive labels: ", len(first)
-        print "Negative labels: ", len(second)
-        wanted_idx = first + second
-        shuffle(wanted_idx)
-        x = x[wanted_idx]
-        y = y[wanted_idx]
+    header = pos_class+" vs "+neg_class+"("+modality+")"
+    if pos_class == 'MCI':
+        pos_class = ['MCI-C', 'MCI-NC', 'MCI-REV']
+    else:
+        pos_class = [pos_class]
+    if neg_class == 'MCI':
+        neg_class = ['MCI-C', 'MCI-NC', 'MCI-REV']
+    else:
+        neg_class = [neg_class]
+    pos_label = [LABELS[pos] for pos in pos_class]
+    neg_label = [LABELS[neg] for neg in neg_class]
+    pos = [i for i in xrange(len(y)) if y[i] in pos_label]
+    neg = [i for i in xrange(len(y)) if y[i] in neg_label]
+    print "Positive labels: ", len(pos)
+    print "Negative labels: ", len(neg)
+    wanted_idx = pos + neg
+    shuffle(wanted_idx)
+    x = x[wanted_idx]
+    y = y[wanted_idx]
 
     svm_params = {}
     svm_params['verbose'] = 0
     # mri=0.002, pet=0.006
     svm_params['C'] = 0.006
     svm_params['tol'] = 1e-5
-    svm_params['fit_intercept'] = True
+    #svm_params['kernel'] = 'linear'
     svm_params['loss'] = 'l1'
     clf = svm.LinearSVC(**svm_params)
-    #clf = svm.SVC(verbose=0, C=10, kernel='rbf')
+    #clf = svm.SVC(**svm_params)
     #clf = linear_model.SGDClassifier(loss='log', penalty='l2',
                                      #alpha=1,
                                      #shuffle=True,
                                      #verbose=1,
                                      #fit_intercept=True)
 
-    make_prediction = True
-    plot_roc = False
-    plot_val = False
-
-    num_rep = 50
+    num_rep = 100
     n_folds = 5
     base = 10
-    param_range = np.logspace(-5, 3, 300, base=base)
+    param_range = np.logspace(-5, 3, 400, base=base)
 
     train_acc = []
     test_acc = []
     cv_train_acc = []
     cv_test_acc = []
-    aurocs_train = []
-    aurocs_test = []
 
     #plt.figure()
     #plt.hold(True)
 
     for rep in xrange(num_rep):
-        message = "\rRepitition %d"%(rep+1)
+        message = "\rRepitition %d"%(rep+1)+": "+header
         sys.stdout.write(message)
         sys.stdout.flush()
         kfold = cross_validation.KFold(len(x), n_folds=n_folds, shuffle=True)
@@ -221,10 +254,6 @@ def classify(x, y, modality):
             if make_prediction:
                 clf = svm.LinearSVC(**svm_params)
                 clf.fit(x_train, y_train)
-                aurocs_test.append(
-                    get_auc(clf, x_test, y_test, plot=plot_roc))
-                aurocs_train.append(
-                    get_auc(clf, x_train, y_train, plot=False))
                 accuracy = predict(clf, (x_train, y_train), (x_test, y_test))
                 fold_train_acc.append(accuracy[0])
                 fold_test_acc.append(accuracy[1])
@@ -235,8 +264,8 @@ def classify(x, y, modality):
                                                              param_range=\
                                                              param_range,
                                                              cv=n_folds,
-                                                             scoring="roc_auc")
-                                                             #scoring="accuracy")
+                                                             #scoring="roc_auc")
+                                                             scoring="accuracy")
                 # take average accross inner folds
                 fold_cv_train_acc.append(np.mean(train_scores, axis=1))
                 fold_cv_test_acc.append(np.mean(test_scores, axis=1))
@@ -256,7 +285,7 @@ def classify(x, y, modality):
     #plt.hold(False)
     if make_prediction:
         plt.figure()
-        plt.title(modality+": Classification accuracy of SVM")
+        plt.title(header+": Classification accuracy of SVM")
         plt.xlabel("Repitition number")
         plt.ylabel("Classification accuracy")
         plt.ylim(0.0, 1.1)
@@ -277,7 +306,7 @@ def classify(x, y, modality):
 
     if plot_val:
         plt.figure()
-        plt.title(modality+": Validation curve for parameter selection")
+        plt.title(header+": Validation curve for parameter selection")
         plt.xlabel("C")
         plt.ylabel("Score")
         plt.ylim(0.0, 1.1)
@@ -296,6 +325,27 @@ def classify(x, y, modality):
                          cv_test_acc.mean(axis=0) + cv_test_acc.std(axis=0),
                          alpha=0.2, color="g")
         plt.legend(loc="best")
+
+def hyper_search():
+    """
+    Do hyper-parameter search for all
+    """
+    PET_X, PET_Y, _ = generate_features_fdg_bl()
+    MRI_X, MRI_Y, _ = generate_features_fdg_bl()
+    CAT_X, CAT_Y = generate_features_concat()
+
+    tasks = [['NL', 'MCI'], ['MCI-C', 'MCI-NC'], ['MCI', 'AD'], ['NL', 'AD']]
+    modalities = {'PET':[PET_X, PET_Y], 'MRI':[MRI_X, MRI_Y],
+                  'CAT':[CAT_X, CAT_Y]}
+    for task in tasks:
+        print "\nSolving task: ", task
+        for name, data in modalities.items():
+            print "Solving modality: ", name
+            classify(data[0], data[1], name, task[0], task[1],
+                     False, False, True)
+            message = name+": "+task[0]+" vs "+task[1]
+            plt.savefig(message + "(acc)")
+            #plt.show(block=False)
 
 def main():
     """
@@ -323,4 +373,4 @@ def main():
     plt.show()
 
 if __name__ == '__main__':
-    main()
+    hyper_search()

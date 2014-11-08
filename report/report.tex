@@ -24,6 +24,60 @@
 \begin{document}
 \maketitle
 
+\part{Using HMMs to predict disease progression}
+
+\section{Statistics about the data}
+\label{sec:data}
+
+There are several choices here for the dataset to be used:
+
+\begin{itemize}
+\item One of MRI/PET/CSF only
+\item Some combination of 2/3 available modalities
+\item Use all three modalities
+\item Add demographics data to any of the above options
+\end{itemize}
+
+\emph{For now}, I have decided to use only the FDG-PET data for the
+HMM problem. 
+
+The pros are:
+
+\begin{itemize}
+\item The PET data is the cleanest and most easy dataset to process.
+\item The feature space is relatively low dimensional. It is
+  the \[mean, median, mode, min, max, stdev\] of the glucose
+  expression for 5 expert defined regions in the brain - making it a
+  total of 30 features for each patient.
+\item Don't have to deal with failed segmentation amongst patients, or
+  missing variables.
+\item The pre-processing for PET scans accross all ADNI cohorts
+  (ADNI1, ADNIGO, ADNI2) was done in one go by the same group using
+  the same software, guaranteeing us homogenity in the data.
+\end{itemize}
+
+The cons are:
+
+\begin{itemize}
+\item Throwing away a lot of useful information from MRIs, CSFs, demographics
+\item A small number of patients ($\approx 502$) have PET scans, which
+  could making learning the HMM a problem
+\end{itemize}
+
+Some possible solutions for the future:
+
+\begin{itemize}
+\item It is potentially a very interesting problem to think about the
+  use of observations from multiple modalities in a HMM setting. The
+  reason this is better than doing it in an SVM setting is - due to
+  the generative nature of the HMMs, we do not have to throw away
+  patients who have missing observations for any of the three modalities.
+\item For the same reason as above, it will be interesting to think
+  about the problem of dealing with missing data.
+\end{itemize}
+
+\part{Establishing the baseline}
+
 \section{Statistics about the Data}
 \label{sec:stats}
 
@@ -74,8 +128,11 @@ only, for the MRI and PET modalities.
 \hline
 & & MCI-c & MCI-nc & MCI-rev &\\
 \hline
-FDG-PET & 157 & 119 & 113 & 15 & 98\\
-MRI & 218 & 175 & 161 & 14 & 164
+FDG-PET & 102 & 94 & 96 & 13 & 97\\
+MRI(clean) & 180 & 133 & 132 & 10 & 123\\
+MRI(complete) & 229 & 196 & 183 & 18 & 192\\
+FDG+MRI(clean) & 79 & 66 & 68 & 9 & 62\\
+FDG+MRI(complete) & 102 & 94 & 96 & 13 & 97\\
 \end{tabular}
 
 \section{SVMs on classification task}

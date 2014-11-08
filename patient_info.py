@@ -101,10 +101,6 @@ def get_baseline_classes(data, phase):
     """
     # store patients in each group
     dx_base = {}
-    conv = {}
-    conv['prog'] = []
-    conv['stable'] = []
-    conv['rev'] = []
 
     # RIDs of patients we want to consider
     # first get all patients belong to the correct phase
@@ -122,18 +118,25 @@ def get_baseline_classes(data, phase):
             dx_baseline = info.DXBASELINE.values[0]
             change = info.DXCHANGE
             if dx_baseline == 1 or dx_baseline == 2:
-                dx_base[patient] = 'nl' # normal control
+                dx_base[patient] = 'NL' # normal control
             elif dx_baseline == 3 or dx_baseline == 4:
-                dx_base[patient] = 'mci' # mild cognitive impairment
+                dx_base[patient] = 'MCI' # mild cognitive impairment
                 if MCI_AD in change.values:
-                    conv['prog'].append(patient)
+                    dx_base[patient] += '-C'
                 elif MCI_NL in change.values:
-                    conv['rev'].append(patient)
+                    dx_base[patient] += '-REV'
                 elif MCI in change.values:
-                    conv['stable'].append(patient)
+                    dx_base[patient] += '-NC'
             elif dx_baseline == 5:
-                dx_base[patient] = 'ad' # alzheimer's disease
+                dx_base[patient] = 'AD' # alzheimer's disease
         except IndexError:
             print 'WARNING: No diagnostic info. for RID=%d'%patient
 
-    return dx_base, conv
+    return dx_base
+
+def show_stats(data):
+    """
+    Keyword Arguments:
+    data -- The subset of the data we want stats for
+    """
+    viscodes = data.VISCODE2.values
