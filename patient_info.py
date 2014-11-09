@@ -7,6 +7,7 @@ belonging to a particular class (AD/CN/MCIc/MCInc)
 """
 
 import pandas as pd
+import numpy as np
 from read import read
 
 BASE_DIR = '/phobos/alzheimers/adni/'
@@ -92,7 +93,7 @@ DXARM = pd.merge(DXARM, BASE_DATA[['RID', 'DXBASELINE']], on='RID')
 DXARM_REG = pd.merge(DXARM, REG[['RID', 'Phase', 'VISCODE', 'VISCODE2',
                                  'EXAMDATE', 'PTSTATUS', 'RGCONDCT',
                                  'RGSTATUS', 'VISTYPE']],
-                     on=['RID', 'Phase', 'VISCODE'])
+                     on=['RID', 'Phase', 'VISCODE', 'VISCODE2'])
 
 def get_baseline_classes(data, phase):
     """
@@ -134,9 +135,30 @@ def get_baseline_classes(data, phase):
 
     return dx_base
 
-def show_stats(data):
+def count_visits(data):
     """
     Keyword Arguments:
-    data -- The subset of the data we want stats for
+    data -- The subset of the data we want visit stats for
     """
-    viscodes = data.VISCODE2.values
+    visits = np.sort(data.VISCODE2.unique())
+    columns = np.r_[['Phase'], ['Count'], visits]
+    rid = data['RID'].unique()
+    stats = pd.DataFrame(columns=columns)
+
+    for patient in rid:
+        reg_info = DXARM_REG[DXARM_REG['RID'] == patient]
+        mode_info = data[data['RID'] == patient]
+        values = []
+        if pd.Series('bl').isin(reg_info.VISCODE2).any():
+            phase = reg_info[reg_info.VISCODE2 == 'bl'].Phase.unique()[0]
+            values.append(phase)
+            values.append(len(mode_info['VISCODE2'].unique()))
+            for visit in visits:
+                if visit in mode_info['VISCODE2'].values:
+                    values.append('True')
+                else:
+                    values.append('False')
+            stats.loc[patient] = values
+
+    print "Total patients = ", len(stats)
+    return stats
