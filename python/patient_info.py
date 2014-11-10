@@ -140,8 +140,15 @@ def count_visits(data):
     Keyword Arguments:
     data -- The subset of the data we want visit stats for
     """
-    visits = np.sort(data.VISCODE2.unique())
-    columns = np.r_[['Phase'], ['Count'], visits]
+    all_visits = np.sort(np.r_[data.VISCODE2.unique(), data.VISCODE.unique()])
+    all_visits = np.array([visit for visit in all_visits
+                           if str(visit) != 'nan' and\
+                           str(visit) != 'f' and\
+                           str(visit)[0] != 'v' and\
+                           str(visit) != 'nv'])
+    all_visits = np.unique(all_visits)
+    print all_visits
+    columns = np.r_[['Phase'], ['Count'], all_visits]
     rid = data['RID'].unique()
     stats = pd.DataFrame(columns=columns)
 
@@ -149,12 +156,17 @@ def count_visits(data):
         reg_info = DXARM_REG[DXARM_REG['RID'] == patient]
         mode_info = data[data['RID'] == patient]
         values = []
-        if pd.Series('bl').isin(reg_info.VISCODE2).any():
+        if mode_info.VISCODE2.isnull().all():
+            visits = mode_info['VISCODE']
+        else:
+            visits = mode_info['VISCODE2']
+        if pd.Series('bl').isin(reg_info.VISCODE2).any()\
+           or pd.Series('sc').isin(reg_info.VISCODE2).any():
             phase = reg_info[reg_info.VISCODE2 == 'bl'].Phase.unique()[0]
             values.append(phase)
-            values.append(len(mode_info['VISCODE2'].unique()))
-            for visit in visits:
-                if visit in mode_info['VISCODE2'].values:
+            values.append(len(visits.unique()))
+            for visit in all_visits:
+                if visit in visits.values:
                     values.append('True')
                 else:
                     values.append('False')
