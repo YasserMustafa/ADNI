@@ -9,6 +9,7 @@ belonging to a particular class (AD/CN/MCIc/MCInc)
 import pandas as pd
 import numpy as np
 from read import read
+import matplotlib.pyplot as plt
 
 BASE_DIR = '/phobos/alzheimers/adni/'
 
@@ -95,7 +96,19 @@ DXARM_REG = pd.merge(DXARM, REG[['RID', 'Phase', 'VISCODE', 'VISCODE2',
                                  'RGSTATUS', 'VISTYPE']],
                      on=['RID', 'Phase', 'VISCODE', 'VISCODE2'])
 
-def get_baseline_classes(data, phase):
+def clean_visits(data):
+    """
+    Keyword Arguments:
+    data -- The data-frame to clean
+    """
+    result = data['VISCODE2'].isnull()
+    for i in xrange(len(result)):
+        if result[i]:
+            data.loc[i, 'VISCODE2'] = data.loc[i, 'VISCODE']
+
+    return data
+
+def get_baseline_classes(data, phase=''):
     """
     Keyword Arguments:
     data -- The data to segment
@@ -107,11 +120,11 @@ def get_baseline_classes(data, phase):
     # first get all patients belong to the correct phase
     # and having baseline measurements
     # then only consider those that have measurements in the data matrix
-    idx = ((DXARM_REG['Phase'] == phase) &
-           (DXARM_REG['VISCODE'] == 'bl') &
-           (DXARM_REG['RGCONDCT'] == 1) &
-           (DXARM_REG['RID'].isin(data['RID'])))
-    rid = DXARM_REG.loc[idx, 'RID']
+    if phase == 'ADNI1':
+        idx = get_adni1_idx(data)
+        rid = DXARM_REG.loc[idx, 'RID']
+    else:
+        rid = data['RID'].unique()
 
     for patient in rid:
         try:
@@ -135,7 +148,20 @@ def get_baseline_classes(data, phase):
 
     return dx_base
 
-def count_visits(data):
+def get_adni1_idx(data):
+    """
+    Extract from DXARM_REG the indices of the rows that belong only to
+    ADNI1 patients, and also exist in 'data'
+    Keyword Arguments: data -- The data-set we want to
+    consider
+
+    """
+    return ((DXARM_REG['Phase'] == 'ADNI1') &
+            (DXARM_REG['VISCODE'] == 'bl') & # belonging to ADNI1
+            (DXARM_REG['RGCONDCT'] == 1) & # was the visit conducted?
+            (DXARM_REG['RID'].isin(data['RID'])))
+
+def count_visits(data, modality='', plot=True):
     """
     Keyword Arguments:
     data -- The subset of the data we want visit stats for
@@ -147,16 +173,17 @@ def count_visits(data):
                            str(visit)[0] != 'v' and\
                            str(visit) != 'nv'])
     all_visits = np.unique(all_visits)
-    print all_visits
-    columns = np.r_[['Phase'], ['Count'], all_visits]
+    print "Unique visit codes:", all_visits
+    columns = np.r_[['Phase'], ['Count'], ['DXBASELINE'], all_visits]
     rid = data['RID'].unique()
     stats = pd.DataFrame(columns=columns)
+    dx_base = get_baseline_classes(data)
 
     for patient in rid:
         reg_info = DXARM_REG[DXARM_REG['RID'] == patient]
         mode_info = data[data['RID'] == patient]
         values = []
-        if mode_info.VISCODE2.isnull().all():
+        if mode_info.VISCODE2.isnull().any():
             visits = mode_info['VISCODE']
         else:
             visits = mode_info['VISCODE2']
@@ -165,6 +192,7 @@ def count_visits(data):
             phase = reg_info[reg_info.VISCODE2 == 'bl'].Phase.unique()[0]
             values.append(phase)
             values.append(len(visits.unique()))
+            values.append(dx_base[patient])
             for visit in all_visits:
                 if visit in visits.values:
                     values.append('True')
@@ -173,4 +201,47 @@ def count_visits(data):
             stats.loc[patient] = values
 
     print "Total patients = ", len(stats)
+    if plot:
+        phases = stats['Phase'].unique()
+        counts = []
+        for phase in phases:
+            counts.append(stats[stats['Phase'] == phase].Count.values)
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.hist(counts, bins=np.arange(1, max(stats.Count+2)),
+                label=phases.tolist(),
+                color=['r', 'g', 'b'][:len(phases)])
+        ax.set_xlabel('Number of visits', fontsize=28)
+        ax.set_ylabel('Number of patients', fontsize=28)
+        ax.set_title('Histogram of patient visits for '+modality+' data',
+                     fontsize=30)
+        ax.legend()
+        ax.yaxis.grid(True)
+        ax.tick_params(axis='both', which='major', labelsize=22)
+        ax.xaxis.set_ticks(np.arange(1, max(stats.Count+2)))
+        fig.show()
     return stats
+
+def plot_dx(stats, modality=''):
+    """
+    Show the distribution of diagnoses against patient-visit counts
+    Keyword Arguments:
+    stats -- The stats to plot
+    """
+    dx_base = np.sort(stats['DXBASELINE'].unique())
+    counts = []
+    for dx in dx_base:
+        counts.append(stats[stats['DXBASELINE'] == dx].Count.values)
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.hist(counts, bins=np.arange(1, max(stats.Count+2)),
+            label=dx_base.tolist())
+    ax.set_xlabel('Number of visits', fontsize=28)
+    ax.set_ylabel('Number of patients', fontsize=28)
+    ax.set_title('Histogram of patient visits for '+modality+' data',
+                 fontsize=30)
+    ax.legend()
+    ax.yaxis.grid(True)
+    ax.tick_params(axis='both', which='major', labelsize=22)
+    ax.xaxis.set_ticks(np.arange(1, max(stats.Count+2)))
+    fig.show()

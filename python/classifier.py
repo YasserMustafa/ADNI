@@ -158,6 +158,20 @@ def get_auc(clf, x, y, plot=False):
         generate_roc_plot(fpr, tpr, 'AUROC=%f'%auroc)
     return auroc
 
+def get_roc_ax():
+    """
+    Get an axes suitable for plotting ROC curves
+    """
+    roc_fig = plt.figure()
+    roc_ax = roc_fig.add_subplot(111)
+    roc_ax.hold(True)
+    roc_ax.plot([0, 1], [0, 1], 'k--')
+    roc_ax.set_xlim([0., 1.])
+    roc_ax.set_ylim([0., 1.05])
+    roc_ax.set_xlabel('False positive rate')
+    roc_ax.set_ylabel('True positive rate')
+    return roc_fig, roc_ax
+
 def generate_roc_plot(fpr, tpr, title):
     """
     Keyword Arguments:
@@ -173,7 +187,7 @@ def generate_roc_plot(fpr, tpr, title):
     plt.xlabel('False positive rate')
     plt.ylabel('True positive rate')
 
-def classify(x, y, modality, pos_class='NL', neg_class='AD',
+def classify(x, y, modality, pos_class='NL', neg_class='AD', C=None,
              make_prediction=True, plot_roc=False, plot_val=False):
     """
     Classify patients based on FDG-PET features
@@ -201,10 +215,14 @@ def classify(x, y, modality, pos_class='NL', neg_class='AD',
     svm_params = {}
     svm_params['verbose'] = 0
     # mri=0.002, pet=0.006
-    svm_params['C'] = 0.006
+    if C is not None:
+        svm_params['C'] = C
+    else:
+        svm_params['C'] = 0.006
     svm_params['tol'] = 1e-5
     #svm_params['kernel'] = 'linear'
     svm_params['loss'] = 'l1'
+    svm_params['penalty'] = 'l2'
     clf = svm.LinearSVC(**svm_params)
     #clf = svm.SVC(**svm_params)
     #clf = linear_model.SGDClassifier(loss='log', penalty='l2',
@@ -223,8 +241,13 @@ def classify(x, y, modality, pos_class='NL', neg_class='AD',
     cv_train_acc = []
     cv_test_acc = []
 
-    #plt.figure()
-    #plt.hold(True)
+    if plot_roc:
+        roc_fig, roc_ax = get_roc_ax()
+        rep_auroc = []
+        # randomly choose the repititions to draw ROC curves for
+        roc_count = 10
+        roc_rep = np.sort(np.random.randint(0, num_rep, roc_count))
+        roc_drawn = 0
 
     for rep in xrange(num_rep):
         message = "\rRepitition %d"%(rep+1)+": "+header
@@ -257,6 +280,12 @@ def classify(x, y, modality, pos_class='NL', neg_class='AD',
                 accuracy = predict(clf, (x_train, y_train), (x_test, y_test))
                 fold_train_acc.append(accuracy[0])
                 fold_test_acc.append(accuracy[1])
+            if plot_roc:
+                fpr, tpr, _ = roc_curve(y_test, clf.decision_function(x_test))
+                rep_auroc.append(auc(fpr, tpr))
+                if roc_rep[roc_drawn] == rep:
+                    roc_ax.plot(fpr, tpr)
+                    rep += 1
             if plot_val:
                 train_scores, test_scores = validation_curve(clf,
                                                              x_train, y_train,
@@ -270,9 +299,10 @@ def classify(x, y, modality, pos_class='NL', neg_class='AD',
                 fold_cv_train_acc.append(np.mean(train_scores, axis=1))
                 fold_cv_test_acc.append(np.mean(test_scores, axis=1))
 
-        # now take average accross outer folds
-        cv_train_acc.append(np.array(fold_cv_train_acc).mean(axis=0))
-        cv_test_acc.append(np.array(fold_cv_test_acc).mean(axis=0))
+        if plot_val:
+            # now take average accross outer folds
+            cv_train_acc.append(np.array(fold_cv_train_acc).mean(axis=0))
+            cv_test_acc.append(np.array(fold_cv_test_acc).mean(axis=0))
         # keep accuracy for each fold so we can see variance
         train_acc.append(np.array(fold_train_acc))
         test_acc.append(np.array(fold_test_acc))
@@ -282,7 +312,10 @@ def classify(x, y, modality, pos_class='NL', neg_class='AD',
     cv_train_acc = np.array(cv_train_acc)
     cv_test_acc = np.array(cv_test_acc)
 
-    #plt.hold(False)
+
+    if plot_roc:
+        roc_ax.set_title(header+': AUROC=%f'%np.mean(rep_auroc))
+        roc_fig.savefig(header+'(ROC)')
     if make_prediction:
         plt.figure()
         plt.title(header+": Classification accuracy of SVM")
@@ -326,7 +359,7 @@ def classify(x, y, modality, pos_class='NL', neg_class='AD',
                          alpha=0.2, color="g")
         plt.legend(loc="best")
 
-def hyper_search():
+def run_all(job='results'):
     """
     Do hyper-parameter search for all
     """
@@ -337,15 +370,30 @@ def hyper_search():
     tasks = [['NL', 'MCI'], ['MCI-C', 'MCI-NC'], ['MCI', 'AD'], ['NL', 'AD']]
     modalities = {'PET':[PET_X, PET_Y], 'MRI':[MRI_X, MRI_Y],
                   'CAT':[CAT_X, CAT_Y]}
+    C = np.array([[0.8, 0.9, 0.011],
+                  [0.003, 0.0025, 0.001],
+                  [0.02, 0.02, 0.015],
+                  [0.01, 0.008, 0.008]])
+    task_num = 0
+    modal_num = 0
     for task in tasks:
         print "\nSolving task: ", task
+        modal_num = 0
         for name, data in modalities.items():
             print "Solving modality: ", name
-            classify(data[0], data[1], name, task[0], task[1],
-                     False, False, True)
+            if job == 'hyper-search':
+                classify(data[0], data[1], name, task[0], task[1],
+                         C[task_num, modal_num],
+                         False, False, True)
+            elif job == 'results':
+                classify(data[0], data[1], name, task[0], task[1],
+                         C[task_num, modal_num],
+                         True, True, False)
             message = name+": "+task[0]+" vs "+task[1]
             plt.savefig(message + "(acc)")
+            modal_num += 1
             #plt.show(block=False)
+        task_num += 1
 
 def main():
     """
@@ -373,4 +421,4 @@ def main():
     plt.show()
 
 if __name__ == '__main__':
-    hyper_search()
+    run_all('results')

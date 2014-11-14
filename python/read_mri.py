@@ -2,6 +2,7 @@
 
 import pandas as pd
 from read import read
+from patient_info import clean_visits
 
 BASE_DIR = '/phobos/alzheimers/adni/'
 
@@ -15,6 +16,16 @@ DATA_FILE = BASE_DIR + 'UCSFFSX_08_01_14.csv'
 
 FSX_51 = read(DATA_51_FILE)
 FSX = read(DATA_FILE)
+
+if 'VISCODE2' in FSX.columns:
+    FSX = clean_visits(FSX)
+else:
+    FSX['VISCODE2'] = FSX['VISCODE']
+
+if 'VISCODE2' in FSX_51.columns:
+    FSX_51 = clean_visits(FSX_51)
+else:
+    FSX_51['VISCODE2'] = FSX_51['VISCODE']
 
 def find_unique(src, target):
     """
