@@ -240,6 +240,7 @@ def classify(x, y, modality, pos_class='NL', neg_class='AD', C=None,
     test_acc = []
     cv_train_acc = []
     cv_test_acc = []
+    high_idx = []
 
     if plot_roc:
         roc_fig, roc_ax = get_roc_ax()
@@ -277,6 +278,7 @@ def classify(x, y, modality, pos_class='NL', neg_class='AD', C=None,
             if make_prediction:
                 clf = svm.LinearSVC(**svm_params)
                 clf.fit(x_train, y_train)
+                high_idx.append(np.argsort(clf.coef_[0])[-10:])
                 accuracy = predict(clf, (x_train, y_train), (x_test, y_test))
                 fold_train_acc.append(accuracy[0])
                 fold_test_acc.append(accuracy[1])
@@ -317,6 +319,13 @@ def classify(x, y, modality, pos_class='NL', neg_class='AD', C=None,
         roc_ax.set_title(header+': AUROC=%f'%np.mean(rep_auroc))
         roc_fig.savefig(header+'(ROC)')
     if make_prediction:
+        plt.figure()
+        high_idx = np.ravel(high_idx)
+        plt.hist(np.ravel(high_idx), bins=np.arange(max(high_idx)))
+        plt.xlabel('Feature Idx')
+        plt.ylabel('Count')
+        plt.title(header+": High wt. features")
+        plt.savefig(header+'(wt)')
         plt.figure()
         plt.title(header+": Classification accuracy of SVM")
         plt.xlabel("Repitition number")
