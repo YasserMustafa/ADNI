@@ -15,7 +15,7 @@ FDG = pd.read_csv(StringIO.StringIO(open(FDG_FILE)
                                     .read().replace('\x00', '')))
 AV = pd.read_csv(StringIO.StringIO(open(AV_FILE)
                                    .read().replace('\x00', '')))
-FDG['ROI'] = FDG['ROINAME'] + '-' + FDG['ROILAT']
+FDG['ROI'] = FDG['ROINAME'] + '_' + FDG['ROILAT']
 
 if 'VISCODE2' in FDG.columns:
     FDG = clean_visits(FDG)
@@ -53,7 +53,7 @@ def reduce_to_rows():
 
     columns = ['RID', 'VISCODE2']
     for roi in regions:
-        columns.extend([roi+'-'+feature for feature in features])
+        columns.extend([roi+'_'+feature for feature in features])
 
     return pd.DataFrame(data, columns=columns)
 
