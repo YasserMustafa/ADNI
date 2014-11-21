@@ -30,6 +30,23 @@ DICT = read(DATADIC_FILE)
 ARM = read(ARM_FILE)
 REG = read(REG_FILE)
 
+"""
+1: Normal
+2: Serious Memory Complaints (SMC)
+3: EMCI
+4: LMCI
+5: AD
+"""
+NORMAL = 1
+SMC = 2
+EMCI = 3
+LMCI = 4
+AD = 5
+
+"""
+Key for DXCHANGE
+"""
+
 NL = 1
 MCI = 2
 AD = 3
@@ -64,18 +81,6 @@ DXSUM.loc[(DXSUM['DXCONV'] == 2) &
 DXARM = pd.merge(DXSUM[['RID', 'Phase', 'VISCODE', 'VISCODE2', 'DXCHANGE']],
                  ARM[['RID', 'Phase', 'ARM', 'ENROLLED']],
                  on=['RID', 'Phase'])
-"""
-1: Normal
-2: Serious Memory Complaints (SMC)
-3: EMCI
-4: LMCI
-5: AD
-"""
-NORMAL = 1
-SMC = 2
-EMCI = 3
-LMCI = 4
-AD = 5
 
 BASE_DATA = DXARM.loc[(DXARM['VISCODE2'] == 'bl') &
                       DXARM['ENROLLED'].isin([1, 2, 3])]
@@ -107,6 +112,32 @@ def clean_visits(data):
             data.loc[i, 'VISCODE2'] = data.loc[i, 'VISCODE']
 
     return data
+
+def get_dx(data):
+    """
+    Keyword Arguments:
+    data -- The data we want Diagnoisis information for
+    Note that this function just appends a new column to the df
+    rather than return a new data structure
+
+    Returns the new dataframe with DX info.
+
+    """
+    merged = pd.merge(data, DXARM_REG, on=['RID', 'VISCODE2'],
+                      how='inner')
+
+    cols = []
+    for column in data.columns:
+        if column in merged.columns:
+            cols.append(column)
+
+    cols.extend(['DXCHANGE', 'DXBASELINE'])
+    merged = merged[cols]
+    merged.loc[merged['DXCHANGE'].isin([1, 7, 9]), 'DX'] = 'NL'
+    merged.loc[merged['DXCHANGE'].isin([2, 4, 8]), 'DX'] = 'MCI'
+    merged.loc[merged['DXCHANGE'].isin([3, 5, 6]), 'DX'] = 'AD'
+
+    return merged
 
 def get_baseline_classes(data, phase=''):
     """

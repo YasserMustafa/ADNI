@@ -1,5 +1,3 @@
-function [model, ll] = pet_hmm()
-
 % read in and clean the FDG-PET scan data, and condition it to be used by
 % the pmtk3 package
 
@@ -47,32 +45,20 @@ labels = cellfun(@transpose, labels, 'UniformOutput', false);
 dx = rowvec(sort(unique(stackedLabels)));
 gt.pi = histc(stackedLabels, dx)/numel(stackedLabels);
 gt.A = zeros(numel(dx));
-trans = cellfun(@countTransitions, labels, ...
-                repmat({dx}, numel(labels), 1), 'UniformOutput', false);
-gt.A = sum(cat(3, trans{:}), 3);
-gt.A = bsxfun(@rdivide, gt.A, sum(gt.A, 2));
+for i=1:numel(dx)
+    t1 = find(stackedLabels==dx(i));
+    t2 = t1(1:end-1) + 1;
+    t1 = t1(1:end-1);
+    idx = @(src, dest)sum(stackedLabels(t1)==src ...
+        & stackedLabels(t2)==dest);
+    gt.A(i, :) = arrayfun(idx, repmat(dx(i), 1, numel(dx)), dx)/numel(t1);
+end
 
 %[model, ll] = mixGaussFit(stackedData, 5, 'verbose', true, 'maxIter', 100);
-[model, ll] = hmmFit(data, 6, 'gauss', 'verbose', true, 'maxIter', 100);
+[model, ll] = hmmFit(data, 3, 'gauss', 'verbose', true, 'maxIter', 100);
 
-end
 
-function trans = countTransitions(labels, dx)
-
-trans = zeros(numel(dx));
-for i=1:numel(dx)
-    t1 = find(labels==dx(i));
-    t2 = t1 + 1;
-    t2 = t2(t2 <= numel(labels));
-    t1 = t1(1:numel(t2));
-    if ~isempty(t1) && ~isempty(t2)
-        idx = @(src, dest)sum(labels(t1)==src ...
-            & labels(t2)==dest);
-        trans(i, :) = arrayfun(idx, repmat(dx(i), 1, numel(dx)), dx);
-    end
-end
-
-end
+function trans = countTransitions(
 
 
 

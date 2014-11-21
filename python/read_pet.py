@@ -5,6 +5,7 @@ import StringIO
 from patient_info import clean_visits, get_baseline_classes
 import numpy as np
 import matplotlib.pyplot as plt
+from patient_info import get_dx
 
 BASE_DIR = '/phobos/alzheimers/adni/'
 
@@ -33,25 +34,28 @@ def reduce_to_rows():
     region
 
     """
-    data = []
-    rid = FDG['RID'].unique()
+    fdg = get_dx(FDG) # add diagnosis info. to data-frame
+    data = [] # this will be the data to write to file
+    rid = fdg['RID'].unique()
     features = ['MEAN', 'MEDIAN', 'MODE', 'MIN', 'MAX', 'STDEV']
-    regions = np.sort(FDG['ROI'].unique())
+    regions = np.sort(fdg['ROI'].unique())
 
     for patient in rid:
         row = [patient]
-        pet = FDG[FDG['RID'] == patient]
+        pet = fdg[fdg['RID'] == patient]
         visits = pet.VISCODE2.unique()
         for visit in visits:
-            row.append(visit)
             vis_data = pet[pet['VISCODE2'] == visit].sort('ROI')
+            row.append(visit) # append VISCODE2
+            row.append(vis_data['DX'].unique()[0]) # append the diagnosis
             for region in regions:
+                # first append all the PET features
                 row.extend(vis_data[vis_data['ROI'] == region]
                            [features].values.tolist()[0])
             data.append(row)
             row = [patient]
 
-    columns = ['RID', 'VISCODE2']
+    columns = ['RID', 'VISCODE2', 'DX']
     for roi in regions:
         columns.extend([roi+'_'+feature for feature in features])
 
