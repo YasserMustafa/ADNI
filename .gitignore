@@ -3,7 +3,8 @@
 *.log
 *.pyc
 *.png
+*~
 report/
 !report/report.tex
 !report/report.pdf
-#*
+#*#
