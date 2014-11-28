@@ -1,3 +1,3 @@
 [submodule "matlab/pmtk3"]
 	path = matlab/pmtk3
-	url = git@github.com:probml/pmtk3.git
+	url = https://github.com/devmax/pmtk3
