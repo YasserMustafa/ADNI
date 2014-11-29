@@ -59,10 +59,7 @@ lab.test = labels(idx(1000:end));
 
 dx = rowvec(sort(unique(stackedLabels)));
 gt.pi = histc(stackedLabels, dx)/numel(stackedLabels)';
-gt.A = zeros(numel(dx));
-trans = cellfun(@countTransitions, labels, ...
-                repmat({dx}, numel(labels), 1), 'UniformOutput', false);
-gt.A = normalize(sum(cat(3, trans{:}), 3), 2);
+gt.A = normalize(countTransitions(labels, numel(dx)), 2);
 
 K = 6;
 Y = 3;
@@ -72,6 +69,9 @@ Y = 3;
 [model, ll] = hmmFit(data.train, K, 'gauss', 'verbose', true, ...
                     'maxIter', 100, 'nRandomRestarts', 1);
 
+stacked.train = cell2mat(data.train')';
+stacked.test = cell2mat(data.test')';
+                
 path.train = getViterbiPath(data.train, model);
 path.test = getViterbiPath(data.test, model);
 
@@ -93,6 +93,7 @@ end
 order = seq.train;
 [model, path, dist] = getReordered(order, model, path, dist);
 
+close all;
 plotStateDist(dist.train, 'Distribution for training data');
 plotStateDist(dist.test, 'Distribution for test set');
 
@@ -277,29 +278,5 @@ for i=1:numel(data)
 end
 
 end
-
-function trans = countTransitions(labels, dx)
-%% Count the number of transitions of each type given the label sequence dx
-% dx      -- The sequence of labels for a particular patient
-% labels  -- The possible (label) states the patient can be in
-
-%%
-trans = zeros(numel(dx));
-for i=1:numel(dx)
-    % dx(i) is the source state
-    % every element of dx will be the destination once
-    t1 = find(labels==dx(i));
-    t2 = t1 + 1;
-    t2 = t2(t2 <= numel(labels));
-    t1 = t1(1:numel(t2));
-    if ~isempty(t1) && ~isempty(t2)
-        idx = @(src, dest)sum(labels(t1)==src ...
-            & labels(t2)==dest);
-        trans(i, :) = arrayfun(idx, repmat(dx(i), 1, numel(dx)), dx);
-    end
-end
-
-end
-
 
 
