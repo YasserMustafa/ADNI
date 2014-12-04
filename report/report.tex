@@ -48,130 +48,216 @@ gt.pi = \left[
 \[
 model.pi = \left[ 
 \begin{array}{ccc} 
-0.3352 & 0.1826 & 0.4822
+0.4630 \pm 0.0453 & 0.3479 \pm 0.0276 & 0.1891 \pm 0.0330
 \end{array}
  \right]
 \]
 \[
 gt.A = \left[ 
 \begin{array}{ccc} 
-0.9359 & 0.0569 & 0.0071 \\
-0.0260 & 0.8516 & 0.1224 \\
-0 & 0.0084 & 0.9916 \\
+0.9416 & 0.0584 & 0 \\
+0.0264 & 0.8516 & 0.1220 \\
+0 & 0 & 1 \\
 \end{array}
  \right]
 \]
 \[
 model.A = \left[ 
 \begin{array}{ccc} 
-0.9721 & 0.0258 & 0.0022 \\
-0.0040 & 0.9923 & 0.0037 \\
-0.0090 & 0.0146 & 0.9764 \\
+0.975 \pm 0.013 & 0.019 \pm 0.013 & 0.006 \pm 0.005 \\
+0.000 \pm 0.000 & 0.977 \pm 0.005 & 0.023 \pm 0.005 \\
+0.000 \pm 0.000 & 0.000 \pm 0.000 & 1.000 \pm 0.000 \\
 \end{array}
  \right]
 \]
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=\textwidth]{hmm/sanity-train.png}
-  \caption{Viterbi trellis for training set}  
-\end{figure}
-
-\begin{figure}[H]
-  \includegraphics[width=\textwidth]{hmm/sanity-test.png}
-  \caption{Viterbi trellis for testing set}  
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{hmm/sanity-viterbi-train.png}
+  \includegraphics[width=\textwidth]{hmm/dist_train_3.png}
   \caption{Distribution of states for training set}  
 \end{figure}
 
 \begin{figure}[H]
-  \includegraphics[width=\textwidth]{hmm/sanity-viterbi-test.png}
+  \includegraphics[width=\textwidth]{hmm/dist_test_3.png}
   \caption{Distribution of states for testing set}  
 \end{figure}
+
+\begin{figure}[H]
+  \includegraphics[width=\textwidth]{hmm/latency_3.png}
+  \caption{Distribution of latency}  
+\end{figure}
+
 
 \subsection{Analysing the transitions}
 \label{sec:an-trans}
 
-The following is a matrix that visualizes where MCI$\rightarrow$AD
-transitions in the labelled data end up in the HMM state space. That
-is, for every MCI$\rightarrow$AD transition in the real world, we look
-at the corresponding transition in the HMM state space. The rows
-represent the source HMM state, whereas the columns are the
-destination HMM state. This data is aggregated over time, so there is
-no temporal aspect. 
+\subsection{K=3}
 
-For the training set, the conversion matrix is:
+Training set:
 
-\[
-\left[ 
-\begin{array}{ccc} 
-37 & 2 & 0 \\
-0  & 36 & 0 \\
-0 & 2 & 16 \\
-\end{array}
- \right]
-\]
+\[ \begin{array}{ c || c | c | c }
+ & NL \rightarrow NL & MCI \rightarrow NL & NL \rightarrow MCI \\
+\hline
+\hline
+1 \rightarrow 1 & 0.591 \pm 0.045 & 0.479 \pm 0.127 & 0.412 \pm 0.000 \\
+1 \rightarrow 2 & 0.002 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
+2 \rightarrow 2 & 0.339 \pm 0.000 & 0.375 \pm 0.000 & 0.494 \pm 0.000 \\
+1 \rightarrow 3 & 0.002 \pm 0.002 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
+2 \rightarrow 3 & 0.001 \pm 0.063 & 0.000 \pm 0.054 & 0.000 \pm 0.000 \\
+3 \rightarrow 3 & 0.066 \pm 0.000 & 0.146 \pm 0.000 & 0.093 \pm 0.000 \\
+Total Count & 344.000 \pm 37.242 & 16.000 \pm 1.000 & 21.333 \pm 5.508\\
+\end{array} \]
 
-For the testing set, the conversion matrix is:
+\[ \begin{array}{ c || c | c | c } 
+& MCI \rightarrow MCI & MCI \rightarrow AD & AD \rightarrow AD \\
+\hline
+\hline
+1 \rightarrow 1 & 0.333 \pm 0.036 & 0.139 \pm 0.033 & 0.026 \pm 0.000 \\
+1 \rightarrow 2 & 0.003 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
+2 \rightarrow 2 & 0.466 \pm 0.000 & 0.390 \pm 0.000 & 0.384 \pm 0.000 \\
+1 \rightarrow 3 & 0.001 \pm 0.000 & 0.009 \pm 0.002 & 0.004 \pm 0.000 \\
+2 \rightarrow 3 & 0.002 \pm 0.061 & 0.022 \pm 0.041 & 0.010 \pm 0.000 \\
+3 \rightarrow 3 & 0.196 \pm 0.000 & 0.440 \pm 0.000 & 0.576 \pm 0.000 \\
+Total Count & 517.000 \pm 4.359 & 74.000 \pm 3.606 & 234.667 \pm 10.263 \\
+\end{array} \]
 
-\[
-\left[ 
-\begin{array}{ccc} 
-13 & 0 & 0 \\
-0  & 6 & 0 \\
-0 & 0 & 1 \\
-\end{array}
- \right]
-\]
+Testing Set:
 
-That is, MCI$\rightarrow$AD transitions in the real world are
-reflected as stationary transitions in the HMM state space.
+\[ \begin{array}{ c || c | c | c }
+ & NL \rightarrow NL & MCI \rightarrow NL & NL \rightarrow MCI \\
+\hline
+\hline
+1 \rightarrow 1 & 0.608 \pm 0.126 & 0.532 \pm 0.122 & 0.488 \pm 0.000 \\
+1 \rightarrow 2 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
+2 \rightarrow 2 & 0.328 \pm 0.000 & 0.337 \pm 0.000 & 0.440 \pm 0.000 \\
+1 \rightarrow 3 & 0.004 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
+2 \rightarrow 3 & 0.004 \pm 0.065 & 0.000 \pm 0.089 & 0.000 \pm 0.000 \\
+3 \rightarrow 3 & 0.056 \pm 0.000 & 0.131 \pm 0.000 & 0.072 \pm 0.000 \\
+Total Count & 172.000 \pm 37.242 & 8.000 \pm 1.000 & 10.667 \pm 5.508\\
+\end{array} \]
+
+\[ \begin{array}{ c || c | c | c }
+& MCI \rightarrow MCI & MCI \rightarrow AD & AD \rightarrow AD \\
+\hline
+\hline
+1 \rightarrow 1 & 0.326 \pm 0.119 & 0.134 \pm 0.039 & 0.034 \pm 0.000 \\
+1 \rightarrow 2 & 0.003 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
+2 \rightarrow 2 & 0.491 \pm 0.000 & 0.434 \pm 0.000 & 0.381 \pm 0.000 \\
+1 \rightarrow 3 & 0.003 \pm 0.000 & 0.010 \pm 0.002 & 0.003 \pm 0.000 \\
+2 \rightarrow 3 & 0.004 \pm 0.092 & 0.008 \pm 0.095 & 0.012 \pm 0.000 \\
+3 \rightarrow 3 & 0.173 \pm 0.000 & 0.413 \pm 0.000 & 0.570 \pm 0.000 \\
+Total Count & 258.000 \pm 4.359 & 37.000 \pm 3.606 & 117.333 \pm 10.263 \\
+\end{array} \]
+
+\section{K=5}
+
+Training Set:
+
+\[ \begin{array}{ c || c | c | c }
+ & NL \rightarrow NL & MCI \rightarrow NL & NL \rightarrow MCI\\ 
+\hline
+\hline
+1 \rightarrow 1 & 0.398 \pm 0.066 & 0.394 \pm 0.079 & 0.215 \pm 0.000 \\
+1 \rightarrow 2 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
+2 \rightarrow 2 & 0.326 \pm 0.000 & 0.291 \pm 0.000 & 0.279 \pm 0.000 \\
+1 \rightarrow 3 & 0.004 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
+2 \rightarrow 3 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
+3 \rightarrow 3 & 0.186 \pm 0.000 & 0.170 \pm 0.000 & 0.343 \pm 0.000 \\
+1 \rightarrow 4 & 0.000 \pm 0.081 & 0.000 \pm 0.023 & 0.000 \pm 0.000 \\
+3 \rightarrow 4 & 0.004 \pm 0.000 & 0.000 \pm 0.000 & 0.018 \pm 0.000 \\
+4 \rightarrow 4 & 0.049 \pm 0.000 & 0.064 \pm 0.000 & 0.116 \pm 0.000 \\
+1 \rightarrow 5 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
+2 \rightarrow 5 & 0.001 \pm 0.002 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
+4 \rightarrow 5 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
+5 \rightarrow 5 & 0.032 \pm 0.035 & 0.081 \pm 0.099 & 0.030 \pm 0.000 \\
+Total Count & 344.000 \pm 10.000 & 16.000 \pm 1.000 & 21.333 \pm 2.517\\
+\end{array} \]
+
+\[ \begin{array}{ c || c | c | c }
+& MCI \rightarrow MCI & MCI \rightarrow AD & AD \rightarrow AD \\
+\hline
+\hline
+1 \rightarrow 1 & 0.200 \pm 0.050 & 0.085 \pm 0.039 & 0.015 \pm 0.000 \\
+1 \rightarrow 2 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.001 \pm 0.000 \\
+2 \rightarrow 2 & 0.243 \pm 0.000 & 0.097 \pm 0.000 & 0.051 \pm 0.000 \\
+1 \rightarrow 3 & 0.003 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
+2 \rightarrow 3 & 0.001 \pm 0.000 & 0.000 \pm 0.000 & 0.002 \pm 0.000 \\
+3 \rightarrow 3 & 0.294 \pm 0.000 & 0.241 \pm 0.000 & 0.212 \pm 0.000 \\
+1 \rightarrow 4 & 0.001 \pm 0.062 & 0.000 \pm 0.105 & 0.000 \pm 0.000 \\
+3 \rightarrow 4 & 0.004 \pm 0.000 & 0.018 \pm 0.000 & 0.011 \pm 0.000 \\
+4 \rightarrow 4 & 0.133 \pm 0.000 & 0.249 \pm 0.000 & 0.287 \pm 0.000 \\
+1 \rightarrow 5 & 0.001 \pm 0.000 & 0.005 \pm 0.000 & 0.003 \pm 0.000 \\
+2 \rightarrow 5 & 0.003 \pm 0.000 & 0.014 \pm 0.001 & 0.005 \pm 0.000 \\
+4 \rightarrow 5 & 0.000 \pm 0.000 & 0.005 \pm 0.001 & 0.001 \pm 0.000 \\
+5 \rightarrow 5 & 0.118 \pm 0.050 & 0.287 \pm 0.063 & 0.412 \pm 0.000 \\
+Total Count & 517.333 \pm 8.737 & 74.333 \pm 5.132 & 235.000 \pm 18.520 \\
+\end{array} \]
+
+Testing Set:
+
+\[ \begin{array}{ c || c | c | c }
+ & NL \rightarrow NL & MCI \rightarrow NL & NL \rightarrow MCI \\
+\hline
+\hline
+1 \rightarrow 1 & 0.418 \pm 0.111 & 0.304 \pm 0.313 & 0.230 \pm 0.000 \\
+1 \rightarrow 2 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
+2 \rightarrow 2 & 0.296 \pm 0.000 & 0.290 \pm 0.000 & 0.221 \pm 0.000 \\
+1 \rightarrow 3 & 0.002 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
+2 \rightarrow 3 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
+3 \rightarrow 3 & 0.184 \pm 0.000 & 0.333 \pm 0.000 & 0.410 \pm 0.000 \\
+3 \rightarrow 4 & 0.002 \pm 0.118 & 0.000 \pm 0.042 & 0.000 \pm 0.000 \\
+4 \rightarrow 4 & 0.053 \pm 0.000 & 0.000 \pm 0.000 & 0.114 \pm 0.000 \\
+1 \rightarrow 5 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
+2 \rightarrow 5 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
+4 \rightarrow 5 & 0.000 \pm 0.004 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
+5 \rightarrow 5 & 0.044 \pm 0.000 & 0.074 \pm 0.000 & 0.026 \pm 0.000 \\
+Total Count & 172.000 \pm 10.000 & 8.000 \pm 1.000 & 10.667 \pm 2.517\\
+\end{array} \]
+
+\[ \begin{array}{ c || c | c | c }
+& MCI \rightarrow MCI & MCI \rightarrow AD & AD \rightarrow AD \\
+\hline
+\hline
+1 \rightarrow 1 & 0.223 \pm 0.144 & 0.061 \pm 0.031 & 0.013 \pm 0.000 \\
+1 \rightarrow 2 & 0.003 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
+2 \rightarrow 2 & 0.219 \pm 0.000 & 0.159 \pm 0.000 & 0.033 \pm 0.000 \\
+1 \rightarrow 3 & 0.001 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
+2 \rightarrow 3 & 0.001 \pm 0.000 & 0.008 \pm 0.000 & 0.002 \pm 0.000 \\
+3 \rightarrow 3 & 0.285 \pm 0.000 & 0.226 \pm 0.002 & 0.198 \pm 0.000 \\
+3 \rightarrow 4 & 0.007 \pm 0.035 & 0.011 \pm 0.118 & 0.006 \pm 0.000 \\
+4 \rightarrow 4 & 0.128 \pm 0.000 & 0.193 \pm 0.000 & 0.303 \pm 0.000 \\
+1 \rightarrow 5 & 0.000 \pm 0.000 & 0.009 \pm 0.000 & 0.000 \pm 0.000 \\
+2 \rightarrow 5 & 0.006 \pm 0.000 & 0.011 \pm 0.000 & 0.011 \pm 0.000 \\
+4 \rightarrow 5 & 0.001 \pm 0.000 & 0.000 \pm 0.002 & 0.000 \pm 0.000 \\
+5 \rightarrow 5 & 0.126 \pm 0.000 & 0.322 \pm 0.002 & 0.435 \pm 0.000 \\
+Total Count & 257.667 \pm 8.737 & 36.667 \pm 5.132 & 117.000 \pm 18.520 \\
+\end{array} \]
 
 \section{HMM with larger state space}
 
 \[
 model.pi = \left[ 
 \begin{array}{ccccc} 
-  0.2103 & 0.2825 & 0.1518 & 0.1325 & 0.2229\\
+0.2481 \pm 0.0425 & 0.2863 \pm 0.0224 & 0.2109 \pm 0.0186 & 0.1039 \pm
+0.0060 & 0.1508 \pm 0.0395
 \end{array}
  \right]
 \]
 \[
 model.A = \left[ 
 \begin{array}{ccccc} 
-0.9424 & 0.0043 & 0.0426 & 0.0061 & 0.0046 \\
-0.0224 & 0.9445 & 0.0055 & 0.0099 & 0.0177 \\
-0.0040 & 0.0036 & 0.9842 & 0.0046 & 0.0037 \\
-0.0066 & 0.0062 & 0.0073 & 0.9720 & 0.0079 \\
-0.0046 & 0.0045 & 0.0114 & 0.0063 & 0.9733 \\
+0.981 \pm 0.006 & 0.006 \pm 0.010 & 0.009 \pm 0.011 & 0.002 \pm 0.003
+& 0.002 \pm 0.003 \\
+ 0.001 \pm 0.001 & 0.962 \pm 0.004 & 0.016 \pm 0.002 & 0.003 \pm 0.005
+ & 0.018 \pm 0.009 \\
+ 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.951 \pm 0.020 & 0.049 \pm 0.020
+ & 0.000 \pm 0.000 \\
+ 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.992 \pm 0.011
+ & 0.008 \pm 0.011 \\
+ 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000
+ & 1.000 \pm 0.000 \\
 \end{array}
  \right]
 \]
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{hmm/trellis-5-train.png}
-  \caption{Viterbi trellis for training set}  
-\end{figure}
-
-\begin{figure}[H]
-  \includegraphics[width=\textwidth]{hmm/trellis-5-test.png}
-  \caption{Viterbi trellis for testing set}  
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{hmm/viterbi-5-train.png}
-  \caption{Distribution of states for training set}  
-\end{figure}
-
-\begin{figure}[H]
-  \includegraphics[width=\textwidth]{hmm/viterbi-5-test.png}
-  \caption{Distribution of states for testing set}  
-\end{figure}
 
 \end{document}
