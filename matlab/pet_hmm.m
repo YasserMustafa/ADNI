@@ -25,6 +25,7 @@ labels(ad) = 3;
 % ignore VISCODE2 for now, which is column #2
 % the high dimensionality of the data is causing singular problems with the
 % covariance matrices. Just work with means for now.
+% 4=MEAN, 5=MEDIAN, 6=MODE, 7=MIN, 8=MAX, 9=STDEV
 pet = table2array(pet(:, [1, 4:6:end]));
 
 % divide up the data by RIDs
@@ -48,12 +49,7 @@ labels = mat2cell(labels, counts);
 pet = cellfun(@transpose, pet, 'UniformOutput', false);
 labels = cellfun(@transpose, labels, 'UniformOutput', false);
 
-% divide the data into training and testing sets
-idx = randperm(numel(pet));
-data.train = pet(idx(1:1000));
-lab.train = labels(idx(1:1000));
-data.test = pet(idx(1000:end));
-lab.test = labels(idx(1000:end));
+[pet, labels] = removeNoise(pet, labels);
 
 %% Generate ground truth data
 
@@ -61,44 +57,112 @@ dx = rowvec(sort(unique(stackedLabels)));
 gt.pi = histc(stackedLabels, dx)/numel(stackedLabels)';
 gt.A = normalize(countTransitions(labels, numel(dx)), 2);
 
-K = 6;
 Y = 3;
+K = 9;
 
-%% Train HMM model
+numFolds = 3; % number of CV folds
+num = floor(length(labels)/numFolds); % number of testing examples in each fold
+idx = randperm(numel(pet));
 
-[model, ll] = hmmFit(data.train, K, 'gauss', 'verbose', true, ...
-                    'maxIter', 100, 'nRandomRestarts', 1);
+% first row is training, second row is testing
+% each column belongs to a particular fold
+loglik= cell(2, numFolds);
+path = cell(2, numFolds);
+dist = cell(2, numFolds);
+A = cell(1, numFolds);
+pi = cell(1, numFolds);
+conf = cell(2, numFolds);
 
-stacked.train = cell2mat(data.train')';
-stacked.test = cell2mat(data.test')';
-                
-path.train = getViterbiPath(data.train, model);
-path.test = getViterbiPath(data.test, model);
+%% Perform CV 
+for fold=1:numFolds
+    %% divide data into training/testing
+    testIdx = num*(fold-1) + 1:min(num*fold, length(labels));
+    trainIdx = setxor(1:numel(labels), testIdx);
+    fprintf('Fold %d: %d training, %d testing\n', fold, numel(trainIdx), numel(testIdx));
+    data.train = pet(idx(trainIdx));
+    data.test = pet(idx(testIdx));
+    lab.train = labels(idx(trainIdx));
+    lab.test = labels(idx(testIdx));
 
-dist.train = getStateDist(lab.train, path.train, Y, K);
-dist.test = getStateDist(lab.test, path.test, Y, K);
+    %% Train HMM model
+    [model, ll] = hmmFit(data.train, K, 'gauss', 'verbose', true, ...
+        'maxIter', 100, 'nRandomRestarts', 1, ...
+        'transPrior', zeros(K));
+    
+    loglik{1, fold} = getLogLik(model, data.train);
+    loglik{2, fold} = getLogLik(model, data.test);
+    
+    path{1, fold} = getViterbiPath(data.train, model);
+    path{2, fold} = getViterbiPath(data.test, model);
+    
+    dist{1, fold} = getStateDist(lab.train, path{1, fold}, Y, K);
+    dist{2, fold} = getStateDist(lab.test, path{2, fold}, Y, K);
 
-[~, seq.train] = sort((dist.train(:, 1) + ones(size(dist.train(:, 1))))./   ...
-                       (dist.train(:, 3) + ones(size(dist.train(:, 3)))), 'descend');
-[~, seq.test] = sort((dist.test(:, 1) + ones(size(dist.test(:, 1))))./      ...
-                       (dist.test(:, 3) + ones(size(dist.test(:, 3)))), 'descend');                   
-
-if isequal(seq.train, seq.test)
-    disp('Match in temporal sequence on training and testing set')
-else
-    disp('NO MATCH in temporal sequence on training and testing set')
+    % the natural ordering of the HMM states, heuristically determined
+    [~, seq] = sort((dist{1, fold}(:, 1) + ones(size(dist{1, fold}(:, 1))))./   ...
+        (dist{1, fold}(:, 3) + ones(size(dist{1, fold}(:, 3)))), 'descend');
+    
+    [model, path(:, fold), dist(:, fold)] = getReordered(seq, model, ...
+        path(:, fold), dist(:, fold));
+    
+    A{fold} = model.A;
+    pi{fold} = model.pi;
+    
+    conf{1, fold} = compareTransitions(path{1, fold}, lab.train, K, Y);
+    conf{2, fold} = compareTransitions(path{2, fold}, lab.test, K, Y);
 end
 
-% the natural ordering of the HMM states, heuristically determined
-order = seq.train;
-[model, path, dist] = getReordered(order, model, path, dist);
-
 close all;
-plotStateDist(dist.train, 'Distribution for training data');
-plotStateDist(dist.test, 'Distribution for test set');
+train_dist = cat(3, dist{1, :});
+test_dist = cat(3, dist{2, :});
+plotStateDist(mean(train_dist, 3), std(train_dist, 0, 3), 'Distribution for training set');
+plotStateDist(mean(test_dist, 3), std(test_dist, 0, 3), 'Distribution for test set');
 
-plotTrellis(data.train, path.train, lab.train, model, 'Trellis for training data');
-plotTrellis(data.test, path.test, lab.test, model, 'Trellis for testing data');
+train_conf = cat(3, conf{1, :});
+test_conf = cat(3, conf{2, :});
+
+fprintf('Training confusion\n')
+typeset_confusion(mean(train_conf, 3), std(train_conf, 0, 3), K, Y);
+fprintf('Testing confusion\n')
+typeset_confusion(mean(test_conf, 3), std(test_conf, 0, 3), K, Y);
+
+[val, counts] = findLatencies(getViterbiPath(pet, model), labels);
+figure;
+hold on;
+bar(val, counts);
+title('Latency in reaching terminal state');
+xlabel('Latency');
+ylabel('Count');
+hold off;
+
+fprintf('Transition matrix\n')
+A = cat(3, A{:});
+A_mean = mean(A, 3);
+A_std = std(A, 0, 3);
+typeset_trans(A_mean, A_std);
+
+pi = cat(3, pi{:});
+pi_mean = mean(pi, 3);
+pi_std = std(pi, 0, 3);
+
+% plotTrellis(path.train, K, 'Trellis for training data');
+% plotTrellis(path.test, K, 'Trellis for testing data');
+
+% plotTrellis(labels, K, 'Trellis for ground-truth data');
+
+end
+
+function typeset_trans(val, stdev)
+
+for row = 1:size(val, 1)
+    text = '';
+    for col = 1:size(val, 2)
+        text = horzcat([text, ' ', num2str(val(row, col), '%.3f'), ...
+            ' \pm ', num2str(stdev(row, col), '%.3f'), ' &']);
+    end
+    text = horzcat([text(1:end-1), '\\']);
+    disp(text);
+end
 
 end
 
@@ -113,18 +177,27 @@ function [model, path, dist] = getReordered(order, model, path, dist)
 %% Order the model
 
 model.pi = model.pi(order);
+
 A = zeros(size(model.A));
+mu = zeros(size(model.emission.mu));
+Sigma = zeros(size(model.emission.Sigma));
+
 for i=1:size(model.A, 1)
     A(i, :) = model.A(order(i), order);
+    mu(:, i) = model.emission.mu(:, order(i));
+    Sigma(:, :, i) = model.emission.Sigma(:, :, order(i));
 end
 
 model.A = A;
+model.emission.mu = mu;
+model.emission.Sigma = Sigma;
 
 %% Order the Viterbi paths
 
-path.train = reorderPath(path.train);
-path.test = reorderPath(path.test);
-    
+for i=1:numel(path)
+    path{i}= reorderPath(path{i});
+end
+
     function path = reorderPath(path)
         % flatten the path first
         stackedPath = cell2mat(path');
@@ -140,8 +213,9 @@ path.test = reorderPath(path.test);
 
 %% Order the distribution matrices
 
-dist.train = reorderDist(dist.train);
-dist.test = reorderDist(dist.test);
+for i=1:numel(dist)
+    dist{i}= reorderDist(dist{i});
+end
 
     function dist = reorderDist(dist)
         newDist = zeros(size(dist));
@@ -153,54 +227,40 @@ dist.test = reorderDist(dist.test);
 
 end
 
-function [trellis, conv] = plotTrellis(data, path, labels, model, name)
+function trellis = plotTrellis(path, K, name)
 %% Visualize the Viterbi Trellis
 
-MCI = 2;
-AD = 3;
-
-t_max = max(cellfun(@(x)size(x, 2), data)); % the longest obs. seq. over all patients
-k = numel(model.pi); % number of states
+t_max = max(cellfun(@(x)length(x), path)); % the longest obs. seq. over all patients
 
 % store the number of transitions from every possible source to every
 % possible destination. The row represents the source, and the column the 
 % destination state. The matrix in cell {t} represents the transitions seen
 % at time = t.
-trellis = repmat({zeros(k)}, t_max-1, 1);
-% store information about the conversion from MCI to AD. For every
-% conversion from MCI to AD seen in the gt, mark the corresponding
-% conversion in the HMM state space in the following matrix. Again, rows
-% are sources and cols are destination states. 
-conv = repmat({zeros(k)}, t_max-1, 1);
+trellis = repmat({zeros(K)}, t_max-1, 1);
 
-for i=1:numel(data)
+for i=1:numel(path)
     for t=1:numel(path{i})-1
-        assert(numel(path{i})==numel(labels{i}), ...
-            'Labels and data sync mismatch');
         r = path{i}(t);
         c = path{i}(t+1);
         trellis{t}(r, c) = trellis{t}(r, c) + 1;
-        
-        if labels{i}(t) == MCI && labels{i}(t+1) == AD
-            conv{t}(r, c) = conv{t}(r, c) + 1;
-        end
     end
 end
 
 figure;
 hold on;
 xlim([0, t_max+1])
-ylim([0, k+1])
+ylim([0, K+1])
 xlabel('Time')
 ylabel('HMM State')
-max_wt = max(cellfun(@(x)max(x(:)), trellis));
 
 for t=1:numel(trellis)
     [r, c] = find(trellis{t});
     for i=1:numel(r)
+        normalizer = sum(trellis{t}(:));
         plot([t, t+1], [r(i), c(i)], ...
-            'Marker', 'x', 'MarkerSize', 10, ...
-            'LineStyle', '-', 'LineWidth', 25*trellis{t}(r(i), c(i))/max_wt);
+            'Marker', '.', 'MarkerSize', 10, ...
+            'LineStyle', '-', 'LineWidth', 150*trellis{t}(r(i), c(i))/normalizer);
+        alpha(0.2);
     end
 end
 hold off;
@@ -209,20 +269,19 @@ title(name);
 
 end
 
-function plotStateDist(h, name)
+function plotStateDist(dist, stdev, name)
 %% Plot a bar chart visualizing the distribution over labels for each state
 
 %%
 labNames = {'NL', 'MCI', 'AD'};
 
-figure;
-
-plt = bar(1:size(h, 1), h, 0.4, 'grouped');
+errorbar_groups(dist', stdev', 'bar_width', 0.75);
+%plt = bar(1:size(h, 1), h, 0.4, 'grouped');
 grid on;
-legend(plt, labNames);
+legend(labNames);
 title(name);
 xlabel('HMM State number')
-ylabel('Count')
+ylabel('Fraction of cases')
 
 end
 
@@ -259,6 +318,7 @@ for lab=1:Y
     h(lab, :) = hist(path(labels==lab), bins);
 end
 
+h = normalize(h, 2);
 % every row represents a HMM state, every column is a gt label
 h = h';
 
