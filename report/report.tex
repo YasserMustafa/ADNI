@@ -15,6 +15,7 @@
 \renewcommand\thesubsubsection{\thesubsection.\alph{subsubsection}}
 
 \newcommand{\tab}{\hspace*{2em}}
+\DeclareGraphicsExtensions{.png}
 
 \title{ADNI Progress report}
 \author{Devendra Goyal\\Uniqname: devendra}
@@ -26,239 +27,130 @@
 
 \part{Using HMMs to predict disease progression}
 
-Training set: randomly picked 1000 patients.\\
-Testing set: Remaining 398 patients.
+\section{Distribution of labels over states}
+\label{sec:dist-lab-stat}
 
-\section{Sanity Check}
-\label{sec:sanity}
-
-As a sanity check, the HMM was trained with the number of states
-$k=3$.
-
-Following are the temporal parameters, as learned by the HMM and
-contrasted with the ground truth.
-
-\[
-gt.pi = \left[ 
-\begin{array}{ccc} 
-0.3062 & 0.4667 & 0.2272
-\end{array}
- \right]
-\]
-\[
-model.pi = \left[ 
-\begin{array}{ccc} 
-0.4630 \pm 0.0453 & 0.3479 \pm 0.0276 & 0.1891 \pm 0.0330
-\end{array}
- \right]
-\]
-\[
-gt.A = \left[ 
-\begin{array}{ccc} 
-0.9416 & 0.0584 & 0 \\
-0.0264 & 0.8516 & 0.1220 \\
-0 & 0 & 1 \\
-\end{array}
- \right]
-\]
-\[
-model.A = \left[ 
-\begin{array}{ccc} 
-0.975 \pm 0.013 & 0.019 \pm 0.013 & 0.006 \pm 0.005 \\
-0.000 \pm 0.000 & 0.977 \pm 0.005 & 0.023 \pm 0.005 \\
-0.000 \pm 0.000 & 0.000 \pm 0.000 & 1.000 \pm 0.000 \\
-\end{array}
- \right]
-\]
+For each patient we consider, we look at \textbf{all visits} they have
+in the database, and if we find that they were labelled as AD on their
+\textbf{last visit}, we retrospectively label all their previous `MCI'
+diagnoses as `MCI-C' to label their conversion. Non-converters are
+labeled `MCI-NC'. This will likely help us gain perspective into the
+`mis-classifications' the HMM model makes for the MCI patients.
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=\textwidth]{hmm/dist_train_3.png}
-  \caption{Distribution of states for training set}  
+  \includegraphics[width=\textwidth]{hmm/dist_train_6.png}
+  \caption{Distribution of labels given HMM state (Training set)}  
 \end{figure}
 
 \begin{figure}[H]
-  \includegraphics[width=\textwidth]{hmm/dist_test_3.png}
-  \caption{Distribution of states for testing set}  
+  \centering
+  \includegraphics[width=\textwidth]{hmm/dist_test_6.png}
+  \caption{Distribution of labels given HMM state (Test set)}  
+\end{figure}
+
+\section{Distribution of labels over terminal HMM state}
+\label{sec:dist-term-stat}
+
+For each patient, we look at the terminal state they end up in as
+obtained by the ML Viterbi path. This information is aggregated to
+look at the distribution of clinical labels at each terminal HMM state.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{hmm/term_train_6.png}
+  \caption{Distribution of states given terminal HMM state (Training set)}  
 \end{figure}
 
 \begin{figure}[H]
-  \includegraphics[width=\textwidth]{hmm/latency_3.png}
-  \caption{Distribution of latency}  
+  \centering
+  \includegraphics[width=\textwidth]{hmm/term_test_6}
+  \caption{Distribution of states given terminal HMM state (Test set)}  
 \end{figure}
 
+\section{Clinical variables}
+\label{sec:clin-var}
 
-\subsection{Analysing the transitions}
-\label{sec:an-trans}
+We explore the use of MMSE and CDR scores. Shown below are their
+ground-truth distributions to get a sense of their utility.
 
-\subsection{K=3}
+\subsection{MMSE}
+\label{sec:mmse}
 
-Training set:
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{hmm/mmse}
+  \caption{Distribution of MMSE given clinical label}  
+\end{figure}
 
-\[ \begin{array}{ c || c | c | c }
- & NL \rightarrow NL & MCI \rightarrow NL & NL \rightarrow MCI \\
-\hline
-\hline
-1 \rightarrow 1 & 0.591 \pm 0.045 & 0.479 \pm 0.127 & 0.412 \pm 0.000 \\
-1 \rightarrow 2 & 0.002 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
-2 \rightarrow 2 & 0.339 \pm 0.000 & 0.375 \pm 0.000 & 0.494 \pm 0.000 \\
-1 \rightarrow 3 & 0.002 \pm 0.002 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
-2 \rightarrow 3 & 0.001 \pm 0.063 & 0.000 \pm 0.054 & 0.000 \pm 0.000 \\
-3 \rightarrow 3 & 0.066 \pm 0.000 & 0.146 \pm 0.000 & 0.093 \pm 0.000 \\
-Total Count & 344.000 \pm 37.242 & 16.000 \pm 1.000 & 21.333 \pm 5.508\\
-\end{array} \]
+\subsection{CDR}
+\label{sec:cdr}
 
-\[ \begin{array}{ c || c | c | c } 
-& MCI \rightarrow MCI & MCI \rightarrow AD & AD \rightarrow AD \\
-\hline
-\hline
-1 \rightarrow 1 & 0.333 \pm 0.036 & 0.139 \pm 0.033 & 0.026 \pm 0.000 \\
-1 \rightarrow 2 & 0.003 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
-2 \rightarrow 2 & 0.466 \pm 0.000 & 0.390 \pm 0.000 & 0.384 \pm 0.000 \\
-1 \rightarrow 3 & 0.001 \pm 0.000 & 0.009 \pm 0.002 & 0.004 \pm 0.000 \\
-2 \rightarrow 3 & 0.002 \pm 0.061 & 0.022 \pm 0.041 & 0.010 \pm 0.000 \\
-3 \rightarrow 3 & 0.196 \pm 0.000 & 0.440 \pm 0.000 & 0.576 \pm 0.000 \\
-Total Count & 517.000 \pm 4.359 & 74.000 \pm 3.606 & 234.667 \pm 10.263 \\
-\end{array} \]
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{hmm/cdr}
+  \caption{Distribution of CDR given clinical label}  
+\end{figure}
 
-Testing Set:
+\subsection{Correlation of HMM state with Clinical Variables}
+\label{sec:hmm-stat-correl-clinvar}
 
-\[ \begin{array}{ c || c | c | c }
- & NL \rightarrow NL & MCI \rightarrow NL & NL \rightarrow MCI \\
-\hline
-\hline
-1 \rightarrow 1 & 0.608 \pm 0.126 & 0.532 \pm 0.122 & 0.488 \pm 0.000 \\
-1 \rightarrow 2 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
-2 \rightarrow 2 & 0.328 \pm 0.000 & 0.337 \pm 0.000 & 0.440 \pm 0.000 \\
-1 \rightarrow 3 & 0.004 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
-2 \rightarrow 3 & 0.004 \pm 0.065 & 0.000 \pm 0.089 & 0.000 \pm 0.000 \\
-3 \rightarrow 3 & 0.056 \pm 0.000 & 0.131 \pm 0.000 & 0.072 \pm 0.000 \\
-Total Count & 172.000 \pm 37.242 & 8.000 \pm 1.000 & 10.667 \pm 5.508\\
-\end{array} \]
+We observe the mean score of clinical variables (MMSE/CDR) given the
+most likely HMM state as decided by the Viterbi algorithm.
 
-\[ \begin{array}{ c || c | c | c }
-& MCI \rightarrow MCI & MCI \rightarrow AD & AD \rightarrow AD \\
-\hline
-\hline
-1 \rightarrow 1 & 0.326 \pm 0.119 & 0.134 \pm 0.039 & 0.034 \pm 0.000 \\
-1 \rightarrow 2 & 0.003 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
-2 \rightarrow 2 & 0.491 \pm 0.000 & 0.434 \pm 0.000 & 0.381 \pm 0.000 \\
-1 \rightarrow 3 & 0.003 \pm 0.000 & 0.010 \pm 0.002 & 0.003 \pm 0.000 \\
-2 \rightarrow 3 & 0.004 \pm 0.092 & 0.008 \pm 0.095 & 0.012 \pm 0.000 \\
-3 \rightarrow 3 & 0.173 \pm 0.000 & 0.413 \pm 0.000 & 0.570 \pm 0.000 \\
-Total Count & 258.000 \pm 4.359 & 37.000 \pm 3.606 & 117.333 \pm 10.263 \\
-\end{array} \]
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{hmm/mmse_mean_train}
+  \caption{Mean MMSE score given Viterbi state (Training set)}  
+\end{figure}
 
-\section{K=5}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{hmm/mmse_mean_test}
+  \caption{Mean MMSE score given Viterbi state (Test set)}  
+\end{figure}
 
-Training Set:
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{hmm/cdr_mean_train}
+  \caption{Mean CDR score given Viterbi state (Training set)}  
+\end{figure}
 
-\[ \begin{array}{ c || c | c | c }
- & NL \rightarrow NL & MCI \rightarrow NL & NL \rightarrow MCI\\ 
-\hline
-\hline
-1 \rightarrow 1 & 0.398 \pm 0.066 & 0.394 \pm 0.079 & 0.215 \pm 0.000 \\
-1 \rightarrow 2 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
-2 \rightarrow 2 & 0.326 \pm 0.000 & 0.291 \pm 0.000 & 0.279 \pm 0.000 \\
-1 \rightarrow 3 & 0.004 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
-2 \rightarrow 3 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
-3 \rightarrow 3 & 0.186 \pm 0.000 & 0.170 \pm 0.000 & 0.343 \pm 0.000 \\
-1 \rightarrow 4 & 0.000 \pm 0.081 & 0.000 \pm 0.023 & 0.000 \pm 0.000 \\
-3 \rightarrow 4 & 0.004 \pm 0.000 & 0.000 \pm 0.000 & 0.018 \pm 0.000 \\
-4 \rightarrow 4 & 0.049 \pm 0.000 & 0.064 \pm 0.000 & 0.116 \pm 0.000 \\
-1 \rightarrow 5 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
-2 \rightarrow 5 & 0.001 \pm 0.002 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
-4 \rightarrow 5 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
-5 \rightarrow 5 & 0.032 \pm 0.035 & 0.081 \pm 0.099 & 0.030 \pm 0.000 \\
-Total Count & 344.000 \pm 10.000 & 16.000 \pm 1.000 & 21.333 \pm 2.517\\
-\end{array} \]
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{hmm/cdr_mean_test}
+  \caption{Mean CDR score given Viterbi state (Test set)}  
+\end{figure}
 
-\[ \begin{array}{ c || c | c | c }
-& MCI \rightarrow MCI & MCI \rightarrow AD & AD \rightarrow AD \\
-\hline
-\hline
-1 \rightarrow 1 & 0.200 \pm 0.050 & 0.085 \pm 0.039 & 0.015 \pm 0.000 \\
-1 \rightarrow 2 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.001 \pm 0.000 \\
-2 \rightarrow 2 & 0.243 \pm 0.000 & 0.097 \pm 0.000 & 0.051 \pm 0.000 \\
-1 \rightarrow 3 & 0.003 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
-2 \rightarrow 3 & 0.001 \pm 0.000 & 0.000 \pm 0.000 & 0.002 \pm 0.000 \\
-3 \rightarrow 3 & 0.294 \pm 0.000 & 0.241 \pm 0.000 & 0.212 \pm 0.000 \\
-1 \rightarrow 4 & 0.001 \pm 0.062 & 0.000 \pm 0.105 & 0.000 \pm 0.000 \\
-3 \rightarrow 4 & 0.004 \pm 0.000 & 0.018 \pm 0.000 & 0.011 \pm 0.000 \\
-4 \rightarrow 4 & 0.133 \pm 0.000 & 0.249 \pm 0.000 & 0.287 \pm 0.000 \\
-1 \rightarrow 5 & 0.001 \pm 0.000 & 0.005 \pm 0.000 & 0.003 \pm 0.000 \\
-2 \rightarrow 5 & 0.003 \pm 0.000 & 0.014 \pm 0.001 & 0.005 \pm 0.000 \\
-4 \rightarrow 5 & 0.000 \pm 0.000 & 0.005 \pm 0.001 & 0.001 \pm 0.000 \\
-5 \rightarrow 5 & 0.118 \pm 0.050 & 0.287 \pm 0.063 & 0.412 \pm 0.000 \\
-Total Count & 517.333 \pm 8.737 & 74.333 \pm 5.132 & 235.000 \pm 18.520 \\
-\end{array} \]
+\subsection{Distribution of Clinical Variables given HMM state}
+\label{sec:dist-heatmap}
 
-Testing Set:
+We observe the distribution of clinical variables (MMSE/CDR) given the
+HMM state as assigned by the Viterbi algorithm
 
-\[ \begin{array}{ c || c | c | c }
- & NL \rightarrow NL & MCI \rightarrow NL & NL \rightarrow MCI \\
-\hline
-\hline
-1 \rightarrow 1 & 0.418 \pm 0.111 & 0.304 \pm 0.313 & 0.230 \pm 0.000 \\
-1 \rightarrow 2 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
-2 \rightarrow 2 & 0.296 \pm 0.000 & 0.290 \pm 0.000 & 0.221 \pm 0.000 \\
-1 \rightarrow 3 & 0.002 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
-2 \rightarrow 3 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
-3 \rightarrow 3 & 0.184 \pm 0.000 & 0.333 \pm 0.000 & 0.410 \pm 0.000 \\
-3 \rightarrow 4 & 0.002 \pm 0.118 & 0.000 \pm 0.042 & 0.000 \pm 0.000 \\
-4 \rightarrow 4 & 0.053 \pm 0.000 & 0.000 \pm 0.000 & 0.114 \pm 0.000 \\
-1 \rightarrow 5 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
-2 \rightarrow 5 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
-4 \rightarrow 5 & 0.000 \pm 0.004 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
-5 \rightarrow 5 & 0.044 \pm 0.000 & 0.074 \pm 0.000 & 0.026 \pm 0.000 \\
-Total Count & 172.000 \pm 10.000 & 8.000 \pm 1.000 & 10.667 \pm 2.517\\
-\end{array} \]
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{hmm/mmse_dist_train}
+  \caption{Distribution of MMSE score given Viterbi state (Training set)}  
+\end{figure}
 
-\[ \begin{array}{ c || c | c | c }
-& MCI \rightarrow MCI & MCI \rightarrow AD & AD \rightarrow AD \\
-\hline
-\hline
-1 \rightarrow 1 & 0.223 \pm 0.144 & 0.061 \pm 0.031 & 0.013 \pm 0.000 \\
-1 \rightarrow 2 & 0.003 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
-2 \rightarrow 2 & 0.219 \pm 0.000 & 0.159 \pm 0.000 & 0.033 \pm 0.000 \\
-1 \rightarrow 3 & 0.001 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 \\
-2 \rightarrow 3 & 0.001 \pm 0.000 & 0.008 \pm 0.000 & 0.002 \pm 0.000 \\
-3 \rightarrow 3 & 0.285 \pm 0.000 & 0.226 \pm 0.002 & 0.198 \pm 0.000 \\
-3 \rightarrow 4 & 0.007 \pm 0.035 & 0.011 \pm 0.118 & 0.006 \pm 0.000 \\
-4 \rightarrow 4 & 0.128 \pm 0.000 & 0.193 \pm 0.000 & 0.303 \pm 0.000 \\
-1 \rightarrow 5 & 0.000 \pm 0.000 & 0.009 \pm 0.000 & 0.000 \pm 0.000 \\
-2 \rightarrow 5 & 0.006 \pm 0.000 & 0.011 \pm 0.000 & 0.011 \pm 0.000 \\
-4 \rightarrow 5 & 0.001 \pm 0.000 & 0.000 \pm 0.002 & 0.000 \pm 0.000 \\
-5 \rightarrow 5 & 0.126 \pm 0.000 & 0.322 \pm 0.002 & 0.435 \pm 0.000 \\
-Total Count & 257.667 \pm 8.737 & 36.667 \pm 5.132 & 117.000 \pm 18.520 \\
-\end{array} \]
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{hmm/mmse_dist_test}
+  \caption{Distribution of MMSE score given Viterbi state (Test set)}  
+\end{figure}
 
-\section{HMM with larger state space}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{hmm/cdr_dist_train}
+  \caption{Distribution of CDR score given Viterbi state (Training set)}  
+\end{figure}
 
-\[
-model.pi = \left[ 
-\begin{array}{ccccc} 
-0.2481 \pm 0.0425 & 0.2863 \pm 0.0224 & 0.2109 \pm 0.0186 & 0.1039 \pm
-0.0060 & 0.1508 \pm 0.0395
-\end{array}
- \right]
-\]
-\[
-model.A = \left[ 
-\begin{array}{ccccc} 
-0.981 \pm 0.006 & 0.006 \pm 0.010 & 0.009 \pm 0.011 & 0.002 \pm 0.003
-& 0.002 \pm 0.003 \\
- 0.001 \pm 0.001 & 0.962 \pm 0.004 & 0.016 \pm 0.002 & 0.003 \pm 0.005
- & 0.018 \pm 0.009 \\
- 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.951 \pm 0.020 & 0.049 \pm 0.020
- & 0.000 \pm 0.000 \\
- 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.992 \pm 0.011
- & 0.008 \pm 0.011 \\
- 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000 & 0.000 \pm 0.000
- & 1.000 \pm 0.000 \\
-\end{array}
- \right]
-\]
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{hmm/cdr_dist_test}
+  \caption{Distribution of CDR score given Viterbi state (Test set)}  
+\end{figure}
 
 \section{Trellis plots}
 
