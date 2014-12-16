@@ -1,4 +1,8 @@
 function typeset_confusion(conf, stdev, K, Y)
+%% Utility function to typeset a confusion matrix into TeX Format
+%  Good luck reading this one...
+
+%%
 
 counts = conf(end, :);
 counts_std = stdev(end, :);

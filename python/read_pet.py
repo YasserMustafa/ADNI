@@ -2,10 +2,10 @@
 
 import pandas as pd
 import StringIO
-from patient_info import clean_visits, get_baseline_classes
+from patient_info import clean_visits
 import numpy as np
 import matplotlib.pyplot as plt
-from patient_info import get_dx
+from patient_info import get_dx, get_baseline_classes, DXARM_REG
 
 BASE_DIR = '/phobos/alzheimers/adni/'
 
@@ -28,38 +28,64 @@ if 'VISCODE2' in AV.columns:
 else:
     AV['VISCODE2'] = AV['VISCODE']
 
-def reduce_to_rows():
+MCI_AD = 5
+
+def flatten_pet():
     """
     Reshape FDG data so that each row represents a visit rather than a
-    region
+    region. Records are sorted by RID, with the VISCODE2 used to break
+    ties within patients.
 
     """
-    fdg = get_dx(FDG) # add diagnosis info. to data-frame
-    data = [] # this will be the data to write to file
-    rid = fdg['RID'].unique()
+    fdg = get_dx(FDG)
+    data = []
+
+    visit_features = ['RID', 'VISCODE2', 'DX']
     features = ['MEAN', 'MEDIAN', 'MODE', 'MIN', 'MAX', 'STDEV']
-    regions = np.sort(fdg['ROI'].unique())
+    regions = np.sort(fdg[:5]['ROI'].unique())
 
-    for patient in rid:
-        row = [patient]
-        pet = fdg[fdg['RID'] == patient]
-        visits = pet.VISCODE2.unique()
-        for visit in visits:
-            vis_data = pet[pet['VISCODE2'] == visit].sort('ROI')
-            row.append(visit) # append VISCODE2
-            row.append(vis_data['DX'].unique()[0]) # append the diagnosis
-            for region in regions:
-                # first append all the PET features
-                row.extend(vis_data[vis_data['ROI'] == region]
-                           [features].values.tolist()[0])
-            data.append(row)
-            row = [patient]
+    grouped = fdg.groupby(visit_features, as_index=False)
+    idx = sorted(grouped.indices.keys())
+    base_dx = get_baseline_classes(fdg)
 
-    columns = ['RID', 'VISCODE2', 'DX']
+    for vis in idx:
+        rid = vis[0]
+        conv = base_dx[rid] == 'MCI-C'
+        visit = grouped.get_group(vis).sort('ROI')[features]
+        data.append(list(vis) +
+                    [conv] +
+                    visit.values.flatten().tolist())
+
+    columns = visit_features + ['CONV']
     for roi in regions:
         columns.extend([roi+'_'+feature for feature in features])
 
-    return pd.DataFrame(data, columns=columns)
+    data = pd.DataFrame(data, columns=columns)
+    data.loc[(data['DX'] == 'MCI') & (data['CONV']), 'DX'] = 'MCI-C'
+    data.loc[(data['DX'] == 'MCI') & (~data['CONV']), 'DX'] = 'MCI-NC'
+    data.pop('CONV')
+
+    return data
+
+def average_pet_features():
+    """
+    Return a df with each patient containing features that are the
+    mean of every feature across all regions
+
+    """
+    fdg = get_dx(FDG)
+    grouped = fdg.groupby(['RID', 'VISCODE2', 'DX'], as_index=False)
+    agg = grouped.aggregate(np.mean)
+
+    visit_features = ['RID', 'VISCODE2', 'DX']
+    features = ['MEAN', 'MEDIAN', 'MODE', 'MIN', 'MAX', 'STDEV']
+    base_dx = get_baseline_classes(agg)
+    res = agg.RID.apply(lambda x: base_dx[x] == 'MCI-C')
+    agg['CONV'] = res
+    agg.loc[(agg['DX'] == 'MCI') & (agg['CONV']), 'DX'] = 'MCI-C'
+    agg.loc[(agg['DX'] == 'MCI') & (~agg['CONV']), 'DX'] = 'MCI-NC'
+
+    return agg[visit_features+features]
 
 def plot_features():
     """

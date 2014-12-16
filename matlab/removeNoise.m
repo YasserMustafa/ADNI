@@ -1,10 +1,15 @@
-function [data, labels] = removeNoise(data, labels)
+function [data, labels] = removeNoise(data, labels, minVisits)
 %% Remove any patients with AD->MCI or AD->NL or NL->AD transitions
+%
+% data          -- data{i} are the observations for patient 'i'
+% labels        -- labels{i} is the seq. of clinical labels for patient 'i'
+% minVisits     -- keep only patients with at least 'minVisits' visits
 
-res = cellfun(@hasBadTransition, labels);
+bad = cellfun(@hasBadTransition, labels);
+visits = cellfun(@(seq)numel(seq) >= minVisits, labels);
 
-data = data(~res);
-labels = labels(~res);
+data = data(~bad & visits);
+labels = labels(~bad & visits);
 
 end
 

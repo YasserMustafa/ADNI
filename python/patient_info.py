@@ -33,9 +33,9 @@ REG = read(REG_FILE)
 """
 1: Normal
 2: Serious Memory Complaints (SMC)
-3: EMCI
-4: LMCI
-5: AD
+3: Early MCI
+4: Late MCI
+5: Alzheimer's Disease
 """
 NORMAL = 1
 SMC = 2
@@ -47,9 +47,9 @@ AD = 5
 Key for DXCHANGE
 """
 
-NL = 1
-MCI = 2
-AD = 3
+NL_NL = 1
+MCI_MCI = 2
+AD_AD = 3
 NL_MCI = 4
 MCI_AD = 5
 NL_AD = 6
@@ -59,11 +59,11 @@ AD_NL = 9
 
 # make the ADNI1 variables compatible with those in ADNIGO/2
 DXSUM.loc[(DXSUM['DXCONV'] == 0) &
-          (DXSUM['DXCURREN'] == 1), 'DXCHANGE'] = NL
+          (DXSUM['DXCURREN'] == 1), 'DXCHANGE'] = NL_NL
 DXSUM.loc[(DXSUM['DXCONV'] == 0) &
-          (DXSUM['DXCURREN'] == 2), 'DXCHANGE'] = MCI
+          (DXSUM['DXCURREN'] == 2), 'DXCHANGE'] = MCI_MCI
 DXSUM.loc[(DXSUM['DXCONV'] == 0) &
-          (DXSUM['DXCURREN'] == 3), 'DXCHANGE'] = AD
+          (DXSUM['DXCURREN'] == 3), 'DXCHANGE'] = AD_AD
 DXSUM.loc[(DXSUM['DXCONV'] == 1) &
           (DXSUM['DXCONTYP'] == 1), 'DXCHANGE'] = NL_MCI
 DXSUM.loc[(DXSUM['DXCONV'] == 1) &
@@ -92,7 +92,7 @@ BASE_DATA.loc[(BASE_DATA['DXCHANGE'].isin([2, 4, 8])) &
               (BASE_DATA['ARM'] == 10), 'DXBASELINE'] = EMCI
 BASE_DATA.loc[(BASE_DATA['DXCHANGE'].isin([2, 4, 8])) &
               ~(BASE_DATA['ARM'] == 10), 'DXBASELINE'] = LMCI
-BASE_DATA.loc[(BASE_DATA['DXCHANGE'].isin([3, 5, 6])),
+BASE_DATA.loc[BASE_DATA['DXCHANGE'].isin([3, 5, 6]),
               'DXBASELINE'] = AD
 DXARM = pd.merge(DXARM, BASE_DATA[['RID', 'DXBASELINE']], on='RID')
 
@@ -117,11 +117,8 @@ def get_dx(data):
     """
     Keyword Arguments:
     data -- The data we want Diagnoisis information for
-    Note that this function just appends a new column to the df
-    rather than return a new data structure
 
     Returns the new dataframe with DX info.
-
     """
     merged = pd.merge(data, DXARM_REG, on=['RID', 'VISCODE2'],
                       how='inner')
@@ -162,17 +159,17 @@ def get_baseline_classes(data, phase=''):
             info = DXARM_REG[DXARM_REG['RID'] == patient]
             dx_baseline = info.DXBASELINE.values[0]
             change = info.DXCHANGE
-            if dx_baseline == 1 or dx_baseline == 2:
+            if dx_baseline == NORMAL or dx_baseline == SMC:
                 dx_base[patient] = 'NL' # normal control
-            elif dx_baseline == 3 or dx_baseline == 4:
+            elif dx_baseline == EMCI or dx_baseline == LMCI:
                 dx_base[patient] = 'MCI' # mild cognitive impairment
                 if MCI_AD in change.values:
                     dx_base[patient] += '-C'
                 elif MCI_NL in change.values:
                     dx_base[patient] += '-REV'
-                elif MCI in change.values:
+                elif MCI_MCI in change.values:
                     dx_base[patient] += '-NC'
-            elif dx_baseline == 5:
+            elif dx_baseline == AD:
                 dx_base[patient] = 'AD' # alzheimer's disease
         except IndexError:
             print 'WARNING: No diagnostic info. for RID=%d'%patient
@@ -192,87 +189,3 @@ def get_adni1_idx(data):
             (DXARM_REG['RGCONDCT'] == 1) & # was the visit conducted?
             (DXARM_REG['RID'].isin(data['RID'])))
 
-def count_visits(data, modality='', plot=True):
-    """
-    Keyword Arguments:
-    data -- The subset of the data we want visit stats for
-    """
-    all_visits = np.sort(np.r_[data.VISCODE2.unique(), data.VISCODE.unique()])
-    all_visits = np.array([visit for visit in all_visits
-                           if str(visit) != 'nan' and\
-                           str(visit) != 'f' and\
-                           str(visit)[0] != 'v' and\
-                           str(visit) != 'nv'])
-    all_visits = np.unique(all_visits)
-    print "Unique visit codes:", all_visits
-    columns = np.r_[['Phase'], ['Count'], ['DXBASELINE'], all_visits]
-    rid = data['RID'].unique()
-    stats = pd.DataFrame(columns=columns)
-    dx_base = get_baseline_classes(data)
-
-    for patient in rid:
-        reg_info = DXARM_REG[DXARM_REG['RID'] == patient]
-        mode_info = data[data['RID'] == patient]
-        values = []
-        if mode_info.VISCODE2.isnull().any():
-            visits = mode_info['VISCODE']
-        else:
-            visits = mode_info['VISCODE2']
-        if pd.Series('bl').isin(reg_info.VISCODE2).any()\
-           or pd.Series('sc').isin(reg_info.VISCODE2).any():
-            phase = reg_info[reg_info.VISCODE2 == 'bl'].Phase.unique()[0]
-            values.append(phase)
-            values.append(len(visits.unique()))
-            values.append(dx_base[patient])
-            for visit in all_visits:
-                if visit in visits.values:
-                    values.append('True')
-                else:
-                    values.append('False')
-            stats.loc[patient] = values
-
-    print "Total patients = ", len(stats)
-    if plot:
-        phases = stats['Phase'].unique()
-        counts = []
-        for phase in phases:
-            counts.append(stats[stats['Phase'] == phase].Count.values)
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        ax.hist(counts, bins=np.arange(1, max(stats.Count+2)),
-                label=phases.tolist(),
-                color=['r', 'g', 'b'][:len(phases)])
-        ax.set_xlabel('Number of visits', fontsize=28)
-        ax.set_ylabel('Number of patients', fontsize=28)
-        ax.set_title('Histogram of patient visits for '+modality+' data',
-                     fontsize=30)
-        ax.legend()
-        ax.yaxis.grid(True)
-        ax.tick_params(axis='both', which='major', labelsize=22)
-        ax.xaxis.set_ticks(np.arange(1, max(stats.Count+2)))
-        fig.show()
-    return stats
-
-def plot_dx(stats, modality=''):
-    """
-    Show the distribution of diagnoses against patient-visit counts
-    Keyword Arguments:
-    stats -- The stats to plot
-    """
-    dx_base = np.sort(stats['DXBASELINE'].unique())
-    counts = []
-    for dx in dx_base:
-        counts.append(stats[stats['DXBASELINE'] == dx].Count.values)
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.hist(counts, bins=np.arange(1, max(stats.Count+2)),
-            label=dx_base.tolist())
-    ax.set_xlabel('Number of visits', fontsize=28)
-    ax.set_ylabel('Number of patients', fontsize=28)
-    ax.set_title('Histogram of patient visits for '+modality+' data',
-                 fontsize=30)
-    ax.legend()
-    ax.yaxis.grid(True)
-    ax.tick_params(axis='both', which='major', labelsize=22)
-    ax.xaxis.set_ticks(np.arange(1, max(stats.Count+2)))
-    fig.show()
