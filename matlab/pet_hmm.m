@@ -35,7 +35,7 @@ idx = mmse~=-1 & ~isnan(mmse) & cdr~=-1 & ~isnan(cdr);
 % the high dimensionality of the data is causing singular problems with the
 % covariance matrices. Just work with means for now.
 % 4=MEAN, 5=MEDIAN, 6=MODE, 7=MIN, 8=MAX, 9=STDEV
-pet = table2array(pet(:, [1, 6:6:end]));
+pet = table2array(pet(:, [1, 6:6:end])); 
 pet = pet(idx, :);
 labels = labels(idx);
 mmse = mmse(idx);
@@ -85,29 +85,45 @@ Y = 4;
 K = 6;
 t_max = max(cellfun(@(seq)(numel(seq)), labels));
 
-numFolds = 3; % number of CV folds
-num = floor(length(labels)/numFolds); % number of testing examples in each fold
-idx = randperm(numel(pet)); % random permutation of all data instances
+% number of CV folds
+numFolds = 3; 
+% number of testing examples in each fold
+num = floor(length(labels)/numFolds); 
+% random permutation of all data instances
+idx = randperm(numel(pet)); 
 
 % first row is training, second row is testing
 % each column belongs to a particular fold
-loglik= cell(2, numFolds); % Loglik of the data
-path = cell(2, numFolds); % The viterbi path given the observations
-prob = cell(2, numFolds); % The prob. seq. of each path derived from the viterbi
-dist = cell(2, numFolds); % the distribution of labels over each HMM state
-trellis = cell(2, numFolds); % the trellis plot for transitions in the HMM
-A = cell(1, numFolds); % The transition matrix learned by the HMM
-pi = cell(1, numFolds); % The initial state dist. learned by the HMM
-conf = cell(2, numFolds); % Confusion matrix to map transitions in clinical labels to transitions in the HMM states
-term = cell(2, numFolds); % Confusion matrix for terminal state in HMM vs clinical labels
-folds = cell(2, numFolds); % Indices of training/testing set for each fold
+
+% Loglik of the data
+loglik= cell(2, numFolds); 
+% The viterbi path given the observations
+path = cell(2, numFolds); 
+% The prob. seq. of each path derived from the viterbi
+prob = cell(2, numFolds); 
+% the distribution of labels over each HMM state
+dist = cell(2, numFolds); 
+% the trellis plot for transitions in the HMM
+trellis = cell(2, numFolds); 
+% The transition matrix learned by the HMM
+A = cell(1, numFolds); 
+% The initial state dist. learned by the HMM
+pi = cell(1, numFolds); 
+% Confusion matrix to map transitions in clinical labels 
+% to transitions in the HMM states
+conf = cell(2, numFolds); 
+% Confusion matrix for terminal state in HMM vs clinical labels
+term = cell(2, numFolds); 
+% Indices of training/testing set for each fold
+folds = cell(2, numFolds); 
 
 %% Perform CV 
 for fold=1:numFolds
     %% divide data into training/testing
     testIdx = num*(fold-1) + 1:min(num*fold, length(labels));
     trainIdx = setxor(1:numel(labels), testIdx);
-    fprintf('Fold %d: %d training, %d testing\n', fold, numel(trainIdx), numel(testIdx));
+    fprintf('Fold %d: %d training, %d testing\n', ...
+        fold, numel(trainIdx), numel(testIdx));
     data.train = pet(idx(trainIdx));
     data.test = pet(idx(testIdx));
     lab.train = labels(idx(trainIdx));
@@ -130,10 +146,12 @@ for fold=1:numFolds
     dist{2, fold} = getStateDist(lab.test, path{2, fold}, Y, K);
 
     % the natural ordering of the HMM states, heuristically determined
-    [~, seq] = sort((dist{1, fold}(:, 1) + ones(size(dist{1, fold}(:, 1))))./   ...
-        (dist{1, fold}(:, 3) + ones(size(dist{1, fold}(:, 3)))), 'descend');
+    [~, seq] = sort((dist{1, fold}(:, 1) + ...
+        ones(size(dist{1, fold}(:, 1))))./ (dist{1, fold}(:, 3) + ...
+        ones(size(dist{1, fold}(:, 3)))), 'descend');
     
-    [model, path(:, fold), prob(:, fold), dist(:, fold)] = getReordered(seq, model, ...
+    [model, path(:, fold), prob(:, fold), dist(:, fold)] = ...
+        getReordered(seq, model, ...
         path(:, fold), prob(:, fold), dist(:, fold));
     
     trellis{1, fold} = getTrellis(path{1, fold}, K, t_max);
@@ -154,24 +172,32 @@ close all;
 % %% state distribution across clinical labels
 % train_dist = cat(3, dist{1, :});
 % test_dist = cat(3, dist{2, :});
-% plotStateDist(mean(train_dist, 3), std(train_dist, 0, 3), labNames, 'Training Dist.(aggregated over time)');
-% plotStateDist(mean(test_dist, 3), std(test_dist, 0, 3), labNames, 'Testing Dist.(aggregated over time)');
+% plotStateDist(mean(train_dist, 3), std(train_dist, 0, 3), ...
+% labNames, 'Training Dist.(aggregated over time)');
+% plotStateDist(mean(test_dist, 3), std(test_dist, 0, 3), ...
+% labNames, 'Testing Dist.(aggregated over time)');
 % 
 % %% terminal state distribution across clinical labels
 % train_term = cat(3, term{1, :});
 % test_term = cat(3, term{2, :});
-% plotStateDist(mean(train_term, 3), std(train_term, 0, 3), labNames, 'Training Dist.(Terminal State)');
-% plotStateDist(mean(test_term, 3), std(test_term, 0, 3), labNames, 'Testing Dist.(Terminal State)');
+% plotStateDist(mean(train_term, 3), std(train_term, 0, 3), ...
+% labNames, 'Training Dist.(Terminal State)');
+% plotStateDist(mean(test_term, 3), std(test_term, 0, 3), ...
+% labNames, 'Testing Dist.(Terminal State)');
 
 % %% MMSE dis. across HMM states
 % 
-% showStateClinicalDist(mmse, folds(1, :), path(1, :), K, 'MMSE Dist. (Training)');
-% showStateClinicalDist(mmse, folds(2, :), path(2, :), K, 'MMSE Dist. (Test)');
+% showStateClinicalDist(mmse, folds(1, :), path(1, :), ...
+%    K, 'MMSE Dist. (Training)');
+% showStateClinicalDist(mmse, folds(2, :), path(2, :), ...
+%    K, 'MMSE Dist. (Test)');
 % 
 % %% CDR dis. across HMM states
 % 
-% showStateClinicalDist(cdr, folds(1, :), path(1, :), K, 'CDR Dist. (Training)');
-% showStateClinicalDist(cdr, folds(2, :), path(2, :), K, 'CDR Dist. (Test)');
+% showStateClinicalDist(cdr, folds(1, :), path(1, :), ...
+% K, 'CDR Dist. (Training)');
+% showStateClinicalDist(cdr, folds(2, :), path(2, :), ...
+% K, 'CDR Dist. (Test)');
 
 % train_conf = cat(3, conf{1, :});
 % test_conf = cat(3, conf{2, :});
@@ -190,7 +216,9 @@ close all;
 end
 
 function typeset_trans(A)
+%% Print a LaTeX version of a transition matrix learned by the HMM
 
+%%
 A = cat(3, A{:});
 val = mean(A, 3);
 stdev = std(A, 0, 3);
@@ -208,7 +236,8 @@ end
 
 end
 
-function [model, path, prob, dist] = getReordered(order, model, path, prob, dist)
+function [model, path, prob, dist] = getReordered(order, model, path,...
+    prob, dist)
 %% Reorder the model and results based on heuristic-based order of states
 
 % order         -- The order of the states to use
