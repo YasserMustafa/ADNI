@@ -8,3 +8,5 @@ report/
 !report/report.tex
 !report/report.pdf
 #*#
+data/
+.DS_Store
