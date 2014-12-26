@@ -10,3 +10,4 @@ report/
 #*#
 data/
 .DS_Store
+matlab/pathdef.m
