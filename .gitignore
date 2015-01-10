@@ -10,3 +10,6 @@ report/
 #*#
 .emacs.desktop*
 .DS_Store
+data/
+.DS_Store
+matlab/pathdef.m
