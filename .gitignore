@@ -8,3 +8,5 @@ report/
 !report/report.tex
 !report/report.pdf
 #*#
+.emacs.desktop*
+.DS_Store
