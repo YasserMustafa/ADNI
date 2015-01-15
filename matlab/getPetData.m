@@ -1,12 +1,13 @@
-function [pet, labels, mmse, cdr] = getPetData()
-
+function [pet, clinical, labels, mmse, cdr] = getPetData(labelNames)
 %% Read and clean data
+
+%%
 
 % read in and clean the FDG-PET scan data, and condition it to be used by
 % the pmtk3 package
 
-%data_pet = '/phobos/alzheimers/adni/pet_mmse_cdr.csv';
-data_pet = '/Users/Dev/Documents/ADNI/data/pet_mmse_cdr.csv';
+data_pet = '/phobos/alzheimers/adni/pet_mmse_cdr.csv';
+%data_pet = '/Users/Dev/Documents/ADNI/data/pet_mmse_cdr.csv';
 
 % must use this because there is some non-numeric data in table (e.g.
 % VISCODE2)
@@ -14,7 +15,6 @@ pet = readtable(data_pet);
 
 % grab the DX for each patient
 labels = pet.DX;
-labelNames = {'NL', 'MCI-NC', 'MCI-C', 'AD'};
 labels = getLabels(labels, labelNames);
 
 mmse = pet.MMSCORE; % MMSE scores
@@ -30,6 +30,7 @@ pet = pet(idx, :);
 labels = labels(idx);
 mmse = mmse(idx);
 cdr = cdr(idx);
+clinical = [mmse cdr];
 
 % When using pet_average_flat, we want all features
 %pet = table2array(pet(:, [1, 4:end]));
@@ -52,18 +53,25 @@ pet = mat2cell(pet, counts);
 labels = mat2cell(labels, counts);
 mmse = mat2cell(mmse, counts);
 cdr = mat2cell(cdr, counts);
+clinical = mat2cell(clinical, counts);
 % make each column an obervation rather than each row
 pet = cellfun(@transpose, pet, 'UniformOutput', false);
 labels = cellfun(@transpose, labels, 'UniformOutput', false);
 mmse = cellfun(@transpose, mmse, 'UniformOutput', false);
 cdr = cellfun(@transpose, cdr, 'UniformOutput', false);
+clinical = cellfun(@transpose, clinical, 'UniformOutput', false);
 
 minVists = 1;
-[pet, labels] = removeNoise(pet, labels, minVists);
+[data, labels] = removeNoise({pet, clinical, mmse, cdr}, labels, minVists);
+[pet, clinical, mmse, cdr] = deal(data{:});
 
 end
+%% Helper functions
 
 function labels = getLabels(labels, labelNames)
+%% Convert the string labels in the data to numerical labels
+
+%%
 
 nl = cellfun(@strcmp, labels, repmat({'NL'}, size(labels, 1), 1));
 ad = cellfun(@strcmp, labels, repmat({'AD'}, size(labels, 1), 1));

@@ -136,6 +136,33 @@ def get_dx(data):
 
     return merged
 
+def get_time_to_conversion(data):
+    """
+    Keyword Arguments:
+    data -- Data Frame with EHR info.
+
+    Label each visit with the time remaining for a NL->MCI or MCI->AD
+    conversion.
+
+    If no conversion is seen, then value = -1
+
+    """
+    if not 'DX' in data:
+        data = get_dx(data)
+
+    data['convtime'] = -1
+        
+    for patient in data.RID:
+        visits = data[data['RID'] == patient]
+        dx = DXARM_REG[DXARM_REG['RID'] == patient]
+        for visit in visits:
+            cur = visit.EXAMDATE
+            if visit['DX'] == 'NL':
+                if NL_MCI in dx.DXCHANGE.values:
+                    pass
+                
+
+
 def get_baseline_classes(data, phase=''):
     """
     Keyword Arguments:

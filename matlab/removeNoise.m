@@ -8,7 +8,9 @@ function [data, labels] = removeNoise(data, labels, minVisits)
 bad = cellfun(@hasBadTransition, labels);
 visits = cellfun(@(seq)numel(seq) >= minVisits, labels);
 
-data = data(~bad & visits);
+for i=1:numel(data)
+    data{i} = data{i}(~bad & visits);
+end
 labels = labels(~bad & visits);
 
 end

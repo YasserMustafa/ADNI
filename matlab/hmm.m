@@ -1,4 +1,4 @@
-function [model, ll] = hmm()
+function [model, ll, path, folds, idx] = hmm(phi, labels, mmse, cdr, K, labelNames, idx)
 %% Train a HMM model on the PET data, and visualize the results
 
 %% Read and clean data
@@ -6,25 +6,26 @@ function [model, ll] = hmm()
 % read in and clean the FDG-PET scan data, and condition it to be used by
 % the pmtk3 package
 
-[pet, labels, mmse, cdr] = getPetData();
-stackedLabels = cell2mat(labels')';
-
 %% Generate ground truth data
 
+stackedLabels = cell2mat(labels')';
 dx = rowvec(sort(unique(stackedLabels)));
 gt.pi = histc(stackedLabels, dx)/numel(stackedLabels)';
 gt.A = normalize(countTransitions(labels, numel(dx)), 2);
 
-Y = 4;
-K = 6;
+Y = numel(labelNames);
 t_max = max(cellfun(@(seq)(numel(seq)), labels));
 
 % number of CV folds
 numFolds = 3; 
 % number of testing examples in each fold
-num = floor(length(labels)/numFolds); 
+num = floor(length(labels)/numFolds);
+
 % random permutation of all data instances
-idx = randperm(numel(pet)); 
+new_idx = randperm(numel(phi)); 
+if isequal(idx, zeros(size(new_idx)))
+    idx = new_idx;
+end
 
 % first row is training, second row is testing
 % each column belongs to a particular fold
@@ -37,8 +38,6 @@ path = cell(2, numFolds);
 prob = cell(2, numFolds); 
 % the distribution of labels over each HMM state
 dist = cell(2, numFolds); 
-% the trellis plot for transitions in the HMM
-trellis = cell(2, numFolds); 
 % The transition matrix learned by the HMM
 A = cell(1, numFolds); 
 % The initial state dist. learned by the HMM
@@ -58,8 +57,8 @@ for fold=1:numFolds
     trainIdx = setxor(1:numel(labels), testIdx);
     fprintf('Fold %d: %d training, %d testing\n', ...
         fold, numel(trainIdx), numel(testIdx));
-    data.train = pet(idx(trainIdx));
-    data.test = pet(idx(testIdx));
+    data.train = phi(idx(trainIdx));
+    data.test = phi(idx(testIdx));
     lab.train = labels(idx(trainIdx));
     lab.test = labels(idx(testIdx));
     folds{1, fold} = idx(trainIdx);
@@ -88,9 +87,7 @@ for fold=1:numFolds
         getReordered(seq, model, ...
         path(:, fold), prob(:, fold), dist(:, fold));
     
-    trellis{1, fold} = getTrellis(path{1, fold}, K, t_max);
-    trellis{2, fold} = getTrellis(path{2, fold}, K, t_max);
-    
+
     A{fold} = model.A;
     pi{fold} = model.pi;
     
@@ -101,37 +98,45 @@ for fold=1:numFolds
     term{2, fold} = compareTerminalState(path{2, fold}, lab.test, K, Y);
 end
 
-close all;
+%% state distribution across clinical labels
 
-% %% state distribution across clinical labels
-% train_dist = cat(3, dist{1, :});
-% test_dist = cat(3, dist{2, :});
-% plotStateDist(mean(train_dist, 3), std(train_dist, 0, 3), ...
-% labNames, 'Training Dist.(aggregated over time)');
-% plotStateDist(mean(test_dist, 3), std(test_dist, 0, 3), ...
-% labNames, 'Testing Dist.(aggregated over time)');
-% 
-% %% terminal state distribution across clinical labels
-% train_term = cat(3, term{1, :});
-% test_term = cat(3, term{2, :});
-% plotStateDist(mean(train_term, 3), std(train_term, 0, 3), ...
-% labNames, 'Training Dist.(Terminal State)');
-% plotStateDist(mean(test_term, 3), std(test_term, 0, 3), ...
-% labNames, 'Testing Dist.(Terminal State)');
+train_dist = cat(3, dist{1, :});
+test_dist = cat(3, dist{2, :});
+plotStateDist(mean(train_dist, 3), std(train_dist, 0, 3), ...
+labelNames, 'Training Dist.(aggregated over time)');
+plotStateDist(mean(test_dist, 3), std(test_dist, 0, 3), ...
+labelNames, 'Testing Dist.(aggregated over time)');
 
-% %% MMSE dis. across HMM states
-% 
-% showStateClinicalDist(mmse, folds(1, :), path(1, :), ...
-%    K, 'MMSE Dist. (Training)');
-% showStateClinicalDist(mmse, folds(2, :), path(2, :), ...
-%    K, 'MMSE Dist. (Test)');
-% 
-% %% CDR dis. across HMM states
-% 
-% showStateClinicalDist(cdr, folds(1, :), path(1, :), ...
-% K, 'CDR Dist. (Training)');
-% showStateClinicalDist(cdr, folds(2, :), path(2, :), ...
-% K, 'CDR Dist. (Test)');
+%% terminal state distribution across clinical labels
+train_term = cat(3, term{1, :});
+test_term = cat(3, term{2, :});
+plotStateDist(mean(train_term, 3), std(train_term, 0, 3), ...
+labelNames, 'Training Dist.(Terminal State)');
+plotStateDist(mean(test_term, 3), std(test_term, 0, 3), ...
+labelNames, 'Testing Dist.(Terminal State)');
+
+%% MMSE dis. across HMM states
+
+showStateClinicalDist(mmse, folds(1, :), path(1, :), K, ...
+    'MMSE Dist. (Training)');
+showStateClinicalDist(mmse, folds(2, :), path(2, :), K, ...
+    'MMSE Dist. (Test)');
+
+%% CDR dis. across HMM states
+
+showStateClinicalDist(cdr, folds(1, :), path(1, :), K, ...
+    'CDR Dist. (Training)');
+showStateClinicalDist(cdr, folds(2, :), path(2, :), K, ...
+    'CDR Dist. (Test)');
+
+%% write Viterbi prob. to csv
+
+writeViterbiProb(prob(1, :), labels, mmse, cdr, folds(1, :), ...
+    'viterbi_prob_train.csv');
+writeViterbiProb(prob(2, :), labels, mmse, cdr, folds(2, :), ...
+    'viterbi_prob_test.csv');
+
+%% Confusion matrices
 
 % train_conf = cat(3, conf{1, :});
 % test_conf = cat(3, conf{2, :});
@@ -141,14 +146,9 @@ close all;
 % fprintf('Testing confusion\n')
 % typeset_confusion(mean(test_conf, 3), std(test_conf, 0, 3), K, Y);
 
-%train_trellis = cat(4, trellis{1, :});
-%test_trellis = cat(4, trellis{2, :});
-
-%plotTrellis(mean(train_trellis, 4), 'Trellis for training set');
-%plotTrellis(mean(test_trellis, 4), 'Trellis for test set');
-
 end
 
+%% Helper functions
 
 function [model, path, prob, dist] = getReordered(order, model, path,...
     prob, dist)
@@ -177,7 +177,7 @@ model.A = A;
 model.emission.mu = mu;
 model.emission.Sigma = Sigma;
 
-%% Order the Viterbi paths
+%% Order the Viterbi paths and probability vectors
 
 for i=1:numel(path)
     [path{i}, prob{i}] = reorderPath(path{i}, prob{i});
@@ -265,7 +265,7 @@ for lab=1:Y
     h(lab, :) = hist(path(labels==lab), bins);
 end
 
-h = normalize(h, 1);
+h = normalize(h, 2);
 % every row represents a HMM state, every column is a gt label
 h = h';
 

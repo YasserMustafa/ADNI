@@ -23,7 +23,7 @@ lat = findLatencies(path(same), labels(same));
 conf = confusionmat(term_label, term_state);
 conf = conf(1:Y, 1:min(K, numel(unique(term_state))));
 
-conf = normalize(conf, 1)';
+conf = normalize(conf, 2)';
 
 end
 

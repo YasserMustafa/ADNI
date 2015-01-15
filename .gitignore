@@ -3,13 +3,14 @@
 *.log
 *.pyc
 *.png
-*~
+*.m~
 report/
 !report/report.tex
 !report/report.pdf
 #*#
-.emacs.desktop*
+*.emacs.desktop*
 .DS_Store
 data/
 .DS_Store
 matlab/pathdef.m
+*.csv
