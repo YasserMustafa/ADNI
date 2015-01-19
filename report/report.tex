@@ -29,206 +29,117 @@
 
 \part{Using HMMs to predict disease progression}
 
-\section{Using PET scans as features for the HMMs}
-\label{sec:pet-hmm}
+\paragraph{Transfer Learning/Manifolds}
 
-First, we use the 5-dimensional feature vectors derived from PET scans
-(mean tracer retention in five expert defined regions) to train a HMM
-and observe the correlation of the Viterbi states with the clinical
-labels and the clinical tests.
+Due to difference in protocols between MRI images from ADNI1 and
+ADNIGO/ADNI2 we are unable to combine information from all three
+cohorts to learn a unified classifier/model. 
+
+A recent work explores this theme by learning a shared manifold using
+data from all 3 protocols. Not only does this utilize all data, but it
+simultaneously projects the data onto a more manageable lower
+dimension.
+
+\paragraph{Missing data}
+
+This problem manifests in two ways; particular patients missing
+certain visits, and the more severe problem of every patient not
+having data from every modality. This severely restricts any
+approaches that attempt to use multi-modal approaches for
+classification.
+
+A recent work attempts to solve the problem by learning separate
+classifiers on groups of data (e.g. MRI+PET, MRI+CSF, etc.) and
+combining information from separate classifiers by using ensemble
+approaches.
+
+\paragraph{Unsupervised Feature Learning}
+
+We currently rely on features that are highly pre-processed. For
+instance, the only PET data available to us is the mean tracer
+retention in 5 ROIs in the brain. These ROIs are selected mainly on
+the basis of positive correlation with clinical disease
+label. However, such a highly processed dataset maybe obfuscating
+useful information that can be mined effectively.
+
+\paragraph{Noisy Labels/Lack of Gold Standard}
+
+Often, the clinical labels assigned to patients (NL/MCI/AD) are
+noisy/incorrect. Furthermore, labeling patients as
+MCI-converters/MCI-non-converters is problematic due to the incomplete
+information available to us. 
+
+The only method of obtaining gold standard diagnosis for patients
+(currently) is through post-mortem analysis of brain tissue, and this
+information is currently only available for a very small number of
+patients.
+
+\paragraph{Amyloid-retention in brain}
+
+Amyloid retention in PET-scans is a recently popularized modality that
+provides us information about the level of amyloid deposits in the
+brain. However, there is very little consensus about the effects of
+amyloid on the onset of AD/conversion likelihood from MCI.
+
+\paragraph{Evaluating HMMs}
+
+Common approaches to evaluating similar unsupervised learning
+approaches in the literature (besides those we already explored) are
+to threshold the unsupervised models at some probability/state and
+evaluate it as a discriminative classifier. Another common approach is
+to use the Pearson correlation coeffecient by examining correlation
+with clinical scores such as the MMSE.
+
+\paragraph{Non-gaussian nature of clinical data}
+
+Clinical scores (MMSE/CDR/ADAS\-Cog) are scored in a
+binary manner (correct/incorrect), with the scores then being
+aggregated over several questions. A Gaussian emission model fails in
+such situations, and a Bernoulli distribution might be better suited.
+
+\section{Results}
+\label{sec:results}
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=\textwidth]{hmm/dist_train_6.png}
+  \includegraphics[width=\textwidth]{hmm/mci_convtime_train}
+  \caption{Conversion time for MCI patients (Training set)}  
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{hmm/mci_convtime_test}
+  \caption{Conversion time for MCI patients (Testing set)}  
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{hmm/nl_convtime_train}
+  \caption{Conversion time for NL patients (Training set)}  
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{hmm/nl_convtime_test}
+  \caption{Conversion time for MCI patients (Testing set)}  
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{hmm/dpet_dist_train_6}
   \caption{Distribution of labels given HMM state (Training set)}  
 \end{figure}
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=\textwidth]{hmm/dist_test_6.png}
+  \includegraphics[width=\textwidth]{hmm/dpet_dist_test_6}
   \caption{Distribution of labels given HMM state (Test set)}  
 \end{figure}
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=\textwidth]{hmm/mmse_mean_train}
-  \caption{Mean MMSE score given Viterbi state (Training set)}  
+  \includegraphics[width=\textwidth]{hmm/pet_dist}
+  \caption{Distribution of PET/dPET feature values}  
 \end{figure}
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{hmm/mmse_mean_test}
-  \caption{Mean MMSE score given Viterbi state (Test set)}  
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{hmm/cdr_mean_train}
-  \caption{Mean CDR score given Viterbi state (Training set)}  
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{hmm/cdr_mean_test}
-  \caption{Mean CDR score given Viterbi state (Test set)}  
-\end{figure}
-
-\section{Using the Viterbi probabilities for a discriminative classifier}
-
-We use the Viterbi lattice probability vectors to predict the clinical
-labels of the patients.
-
-Using the K-dimensional vector of probabilites as a feature vector for
-a linear classifier, the accuracies are $~42\%$, with a roughly
-uniform probability being assigned to each of the three states. If the
-feature vector is appended with the argmax of the probability vector,
-the accuracy increases to $~49\%$. 
-
-As a possible explanation for this, we observe the figure below which
-shows the distribution of probabilities at each state of the HMM as
-calculated by the forward-backward algorithm.
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{hmm/viterbi_prob_dist}
-  \caption{Distribution of probabilities at each state of the HMM as
-    calculated by forward-backward algorithm}  
-\end{figure}
-
-The overwhelmingly bi-modal distribution of probabilities likely
-provides very little information to the discriminative classifier.
-
-\section{Using MMSEs as features for the HMM}
-
-We use the MMSE scores from patients as observations for the
-HMM. 
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{hmm/mmse_hmm_train}
-  \caption{Distribution of labels given HMM state using MMSE (Training set)}  
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{hmm/mmse_hmm_test}
-  \caption{Distribution of labels given HMM state using MMSE (Testing set)}  
-\end{figure}
-
-However, training a traditional HMM using MMSE scores is problematic
-and susceptible to singular covariance matrices in the observation
-models due to the non-Gaussian nature of the distribution of the MMSE
-scores. Consider the following figure:
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{hmm/mmse_bad_dist}
-  \caption{Distribution of MMSE scores over clinical labels}  
-\end{figure}
-
-\section{Comparison of HMMs}
-
-We compare the states assigned by the HMM using PET scans with those
-assigned by the HMM using MMSE scores.
-
-Three states each for both HMMS,
-
-\begin{tabular}[H]{ c | >{$}c<{$} | >{$}c<{$} | >{$}c<{$}}
-  & \text{State 1 (MMSE)}  & \text{State 2 (MMSE)}  & \text{State 3 (MMSE)}\\
-\hline
-State 1 (PET) & 0.73 \pm 0.03 & 0.01 \pm 0.01 & 0.26 \pm 0.03 \\
-State 2 (PET) & 0.42 \pm 0.05 & 0.12 \pm 0.02 & 0.46 \pm 0.04 \\
-State 3 (PET) & 0.13 \pm 0.04 & 0.46 \pm 0.03 & 0.41 \pm 0.03 \\
-\end{tabular}
-
-Six states for the HMM using PET scans and three states for the HMM
-using MMSE,
-
-\begin{tabular}[H]{ c | >{$}c<{$} | >{$}c<{$} | >{$}c<{$}}
-  & \text{State 1 (MMSE)}  & \text{State 2 (MMSE)}  & \text{State 3 (MMSE)}\\
-\hline
-State 1 (PET) & 0.76 \pm 0.06 & 0.01 \pm 0.01 & 0.23 \pm 0.06 \\
-State 2 (PET) & 0.70 \pm 0.03 & 0.02 \pm 0.01 & 0.30 \pm 0.03 \\
-State 3 (PET) & 0.55 \pm 0.04 & 0.06 \pm 0.03 & 0.40 \pm 0.03 \\
-State 4 (PET) & 0.21 \pm 0.17 & 0.32 \pm 0.15 & 0.47 \pm 0.03 \\
-State 5 (PET) & 0.23 \pm 0.12 & 0.32 \pm 0.17 & 0.45 \pm 0.08 \\
-State 6 (PET) & 0.20 \pm 0.10 & 0.35 \pm 0.17 & 0.46 \pm 0.08 \\
-\end{tabular}
-
-\section{Comparison with related work}
-
-The most similar work to ours is
-\href{http://ieeexplore.ieee.org/xpls/abs_all.jsp?arnumber=6346556\&tag=1}{Disease
-  Progression modeling using Hidden Markov Models}, where the authors
-use a similar approach to stage patients using HMMs. Some differences
-are:
-
-\begin{itemize}
-\item The above work uses \textbf{longitudinal} MRI-based features as
-  compared to our \textbf{cross-sectional} PET-based features
-\item They only analyze the distributions of \{NL, MCI, AD\} over each
-  HMM state as compared to our analysis of \{NL, MCI-stable,
-    MCI-converters, AD\}
-\end{itemize}
-
-A more reputable but only somewhat similar work appears in
-\href{http://brain.oxfordjournals.org/content/early/2014/07/09/brain.awu176.full}{Event-based
-  model of Alzheimer's Disease}.
-
-The main idea here is to fit Gaussian mixture models to $14$
-biomarkers (combination of CSF, MRI and clinical tests such as the
-MMSE, ADAS-cog, etc.) with the two mixture components representing
-`controls' or `patients'. 
-
-The hypothesis states that there is a
-natural ordering of these $14$ biomarkers, and using a
-maximum-likelihood approach we are able to find the most likely
-current position of the patient in the `event' space, where an event
-represents the control/patient status of a biomarker. Thus, being in
-state $k$ of the event-space signifies that events $1-k$ have occured
-(their levels are abnormal as observed in patients)  and events $k-14$
-have not occured (their levels are normal as observed in controls). 
-
-The natural ordering of the $14$ biomarkers is retrieved using a
-greedy approach that maximizes the joint likelihood of that
-data. Furthermore, using MCMC sampling, the authors are able to
-provide a notion of uncertainty associated with the ordering of the
-events.
-
-Using the above natural ordering a patient can be assigned to a
-particular stage $k$ in the natural ordering such that the likelihood
-of the data is maximized. Furthermore, they simply threshold on an
-event stage to predict conversion from NL$\rightarrow$MCI or
-MCI$\rightarrow$AD. This stage is picked such that the prediction
-accuracy is maximized.
-
-Some key difference of this paper with our work are:
-
-\begin{itemize}
-\item Works with just one visit of the patient (cross-sectional data)
-  as opposed to our reliance on a sequence of visits. The caveat to
-  this is that it does not exploit the temporal information in the data
-\item Makes use of a several modalities (three different sources),
-  some of which are invasive (CSF)
-\item Prediction of conversion is not state of the art given the range
-  of modalities used, however it is more interpretable from a clinical
-  standpoint and completely unsupervised
-\end{itemize}
-
-\section{Conclusions/Future Work}
-
-One possible use for our model is to deploy it as an `assistant' to
-clinicians. In particular, all diagnostic labels in the ADNI cohort
-are assigned based purely on clinical tests such as the MMSE,
-ADAS-Cog, RVLT, etc. However, the final diagnostic label is assigned to
-the patient at the discretion of the clinician - there are no
-hard-coded boundaries/guidelines available. 
-
-It might be useful to have a mathematical model of the correlation
-between all of these scores and the final clinical label, that the
-clinician can refer to as a second opinion. While the current results
-for this task are only mildly positive, it could be worthwhile to
-retrain the model with a non-Gaussian observation model/using a
-combination of several clinical tests.
 
 \end{document}
