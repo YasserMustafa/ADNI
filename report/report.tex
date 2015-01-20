@@ -29,11 +29,13 @@
 
 \part{Using HMMs to predict disease progression}
 
+\section{Open Problems/Possible venues}
+
 \paragraph{Transfer Learning/Manifolds}
 
 Due to difference in protocols between MRI images from ADNI1 and
-ADNIGO/ADNI2 we are unable to combine information from all three
-cohorts to learn a unified classifier/model. 
+ADNIGO/ADNI2 (1.5T vs 3T) we are unable to combine information from
+all three cohorts to learn a unified classifier/model.
 
 A recent work explores this theme by learning a shared manifold using
 data from all 3 protocols. Not only does this utilize all data, but it
@@ -52,6 +54,15 @@ A recent work attempts to solve the problem by learning separate
 classifiers on groups of data (e.g. MRI+PET, MRI+CSF, etc.) and
 combining information from separate classifiers by using ensemble
 approaches.
+
+Another simple solution to the problem worth exploring is the use of
+whatever data we have from each visit. In particular, rather than
+taking the intersection of visits from MRI, PET and CSF, we could
+simply use every visit that has any of the three modalities available
+to us. This would likely involve some kind of joint optimization over
+parameters or some minor mathematical tweaking of a traditional
+problem formulation (however this seems to be inexistent in the
+literature for some reason...).
 
 \paragraph{Unsupervised Feature Learning}
 
@@ -79,7 +90,12 @@ patients.
 Amyloid retention in PET-scans is a recently popularized modality that
 provides us information about the level of amyloid deposits in the
 brain. However, there is very little consensus about the effects of
-amyloid on the onset of AD/conversion likelihood from MCI.
+amyloid on the onset of AD/conversion likelihood from MCI. That is,
+how are amyloid-positive patients diferent from amyloid-negative
+patients in terms of risk of conversion/chance of getting Alzheimer's?
+There has been work showing a weak correlation between onset of AD and
+amyloid-deposits, however there is likely a need to consider more
+variables in more non-linear models.
 
 \paragraph{Evaluating HMMs}
 
@@ -95,34 +111,13 @@ with clinical scores such as the MMSE.
 Clinical scores (MMSE/CDR/ADAS\-Cog) are scored in a
 binary manner (correct/incorrect), with the scores then being
 aggregated over several questions. A Gaussian emission model fails in
-such situations, and a Bernoulli distribution might be better suited.
+such situations, and a Bernoulli distribution might be better
+suited. This is currently ongoing.
 
 \section{Results}
 \label{sec:results}
 
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{hmm/mci_convtime_train}
-  \caption{Conversion time for MCI patients (Training set)}  
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{hmm/mci_convtime_test}
-  \caption{Conversion time for MCI patients (Testing set)}  
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{hmm/nl_convtime_train}
-  \caption{Conversion time for NL patients (Training set)}  
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{hmm/nl_convtime_test}
-  \caption{Conversion time for MCI patients (Testing set)}  
-\end{figure}
+Using $\delta $PET as features for the HMM.
 
 \begin{figure}[H]
   \centering
@@ -139,7 +134,9 @@ such situations, and a Bernoulli distribution might be better suited.
 \begin{figure}[H]
   \centering
   \includegraphics[width=\textwidth]{hmm/pet_dist}
-  \caption{Distribution of PET/dPET feature values}  
+  \caption{Distribution of values in the PET scans (left column), and
+    the distribution of values in $\delta $PET scans (right
+    column). Each row represents a particular ROI in the brain}
 \end{figure}
 
 \end{document}
