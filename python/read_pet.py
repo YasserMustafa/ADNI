@@ -1,21 +1,20 @@
 """Read and clean the UCSF Free-surfer data"""
 
 import pandas as pd
-import StringIO
+from read import read
 from patient_info import clean_visits
 import numpy as np
 import matplotlib.pyplot as plt
-from patient_info import get_dx, get_baseline_classes, DXARM_REG
+from patient_info import get_dx, get_baseline_classes, get_dx_with_time
+from read_clinical import MMSE, CDR
 
 BASE_DIR = '/phobos/alzheimers/adni/'
 
 FDG_FILE = BASE_DIR + 'UCBERKELEYFDG_03_13_14.csv'
 AV_FILE = BASE_DIR + 'UCBERKELEYAV45_07_30_14.csv'
 
-FDG = pd.read_csv(StringIO.StringIO(open(FDG_FILE)
-                                    .read().replace('\x00', '')))
-AV = pd.read_csv(StringIO.StringIO(open(AV_FILE)
-                                   .read().replace('\x00', '')))
+FDG = read(FDG_FILE)
+AV = read(AV_FILE)
 FDG['ROI'] = FDG['ROINAME'] + '_' + FDG['ROILAT']
 
 if 'VISCODE2' in FDG.columns:
@@ -28,8 +27,6 @@ if 'VISCODE2' in AV.columns:
 else:
     AV['VISCODE2'] = AV['VISCODE']
 
-MCI_AD = 5
-
 def flatten_pet():
     """
     Reshape FDG data so that each row represents a visit rather than a
@@ -37,7 +34,17 @@ def flatten_pet():
     ties within patients.
 
     """
-    fdg = get_dx(FDG)
+    fdg = get_dx_with_time(FDG)
+
+    # add MMSE scores (aggregate only)
+    fdg = fdg.merge(MMSE[['RID', 'VISCODE2', 'MMSCORE']],
+                    on=['RID', 'VISCODE2'],
+                    how='inner')
+    # add CDR scores (global score only)
+    fdg = fdg.merge(CDR[['RID', 'VISCODE2', 'CDGLOBAL']],
+                    on=['RID', 'VISCODE2'],
+                    how='inner')
+
     data = []
 
     visit_features = ['RID', 'VISCODE2', 'DX']
@@ -46,24 +53,25 @@ def flatten_pet():
 
     grouped = fdg.groupby(visit_features, as_index=False)
     idx = sorted(grouped.indices.keys())
-    base_dx = get_baseline_classes(fdg)
 
     for vis in idx:
-        rid = vis[0]
-        conv = base_dx[rid] == 'MCI-C'
-        visit = grouped.get_group(vis).sort('ROI')[features]
-        data.append(list(vis) +
-                    [conv] +
-                    visit.values.flatten().tolist())
+        visit = grouped.get_group(vis).sort('ROI')
+        data.append(list(vis) + # RID, VISCODE2, DX
+                    [visit['CONVTIME'].values[0]] +
+                    [visit['MMSCORE'].values[0]] +
+                    [visit['CDGLOBAL'].values[0]] +
+                    visit[features].values.flatten().tolist())
 
-    columns = visit_features + ['CONV']
+    columns = visit_features + ['CONVTIME', 'MMSCORE', 'CDGLOBAL']
     for roi in regions:
         columns.extend([roi+'_'+feature for feature in features])
 
     data = pd.DataFrame(data, columns=columns)
-    data.loc[(data['DX'] == 'MCI') & (data['CONV']), 'DX'] = 'MCI-C'
-    data.loc[(data['DX'] == 'MCI') & (~data['CONV']), 'DX'] = 'MCI-NC'
-    data.pop('CONV')
+
+    # data.loc[(data['DX'] == 'MCI') & (data['CONVTIME'] > 0), 'DX'] = 'MCI-C'
+    # data.loc[(data['DX'] == 'MCI') & (data['CONVTIME'] == -1), 'DX'] = 'MCI-NC'
+    # data.loc[(data['DX'] == 'NL') & (data['CONVTIME'] > 0), 'DX'] = 'NL-C'
+    # data.loc[(data['DX'] == 'NL') & (data['CONVTIME'] == -1), 'DX'] = 'NL-NC'
 
     return data
 

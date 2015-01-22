@@ -1,13 +1,15 @@
-function [pet, clinical, labels, mmse, cdr] = getPetData(labelNames)
+function [pet, convtime, labels, mmse, cdr] = ...
+    getPetData(labelNames, minVisits)
 %% Read and clean data
+% minVisits         -- Min. number of visits each patient must have
 
 %%
 
 % read in and clean the FDG-PET scan data, and condition it to be used by
 % the pmtk3 package
 
-data_pet = '/phobos/alzheimers/adni/pet_mmse_cdr.csv';
-%data_pet = '/Users/Dev/Documents/ADNI/data/pet_mmse_cdr.csv';
+data_pet = '/phobos/alzheimers/adni/pet_mmse_cdr_convtime.csv';
+%data_pet = '/Users/Dev/Documents/ADNI/data/pet_mmse_cdr_convtime.csv';
 
 % must use this because there is some non-numeric data in table (e.g.
 % VISCODE2)
@@ -15,6 +17,7 @@ pet = readtable(data_pet);
 
 % grab the DX for each patient
 labels = pet.DX;
+convtime = pet.CONVTIME;
 labels = getLabels(labels, labelNames);
 
 mmse = pet.MMSCORE; % MMSE scores
@@ -24,13 +27,13 @@ idx = mmse~=-1 & ~isnan(mmse) & cdr~=-1 & ~isnan(cdr);
 % ignore VISCODE2 for now, which is column #2
 % the high dimensionality of the data is causing singular problems with the
 % covariance matrices. Just work with means for now.
-% 4=MEAN, 5=MEDIAN, 6=MODE, 7=MIN, 8=MAX, 9=STDEV
-pet = table2array(pet(:, [1, 6:6:end])); 
+% Order = MEAN, MEDIAN, MODE, MIN, MAX, STDEV
+pet = table2array(pet(:, [1, 7:6:end])); 
 pet = pet(idx, :);
 labels = labels(idx);
+convtime = convtime(idx);
 mmse = mmse(idx);
 cdr = cdr(idx);
-clinical = [mmse cdr];
 
 % When using pet_average_flat, we want all features
 %pet = table2array(pet(:, [1, 4:end]));
@@ -51,19 +54,18 @@ pet = pet(:, 2:end);
 % variable number of visits
 pet = mat2cell(pet, counts);
 labels = mat2cell(labels, counts);
+convtime = mat2cell(convtime, counts);
 mmse = mat2cell(mmse, counts);
 cdr = mat2cell(cdr, counts);
-clinical = mat2cell(clinical, counts);
 % make each column an obervation rather than each row
 pet = cellfun(@transpose, pet, 'UniformOutput', false);
 labels = cellfun(@transpose, labels, 'UniformOutput', false);
+convtime = cellfun(@transpose, convtime, 'UniformOutput', false);
 mmse = cellfun(@transpose, mmse, 'UniformOutput', false);
 cdr = cellfun(@transpose, cdr, 'UniformOutput', false);
-clinical = cellfun(@transpose, clinical, 'UniformOutput', false);
 
-minVists = 1;
-[data, labels] = removeNoise({pet, clinical, mmse, cdr}, labels, minVists);
-[pet, clinical, mmse, cdr] = deal(data{:});
+[data, labels] = removeNoise({pet, convtime, mmse, cdr}, labels, minVisits);
+[pet, convtime, mmse, cdr] = deal(data{:});
 
 end
 %% Helper functions

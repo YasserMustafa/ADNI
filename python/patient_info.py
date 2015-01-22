@@ -129,6 +129,7 @@ def get_dx(data):
             cols.append(column)
 
     cols.extend(['DXCHANGE', 'DXBASELINE'])
+
     merged = merged[cols]
     merged.loc[merged['DXCHANGE'].isin([1, 7, 9]), 'DX'] = 'NL'
     merged.loc[merged['DXCHANGE'].isin([2, 4, 8]), 'DX'] = 'MCI'
@@ -136,7 +137,33 @@ def get_dx(data):
 
     return merged
 
-def get_time_to_conversion(data):
+def get_dx_with_time(data):
+    """
+    Keyword Arguments:
+    data -- The data we want diagnosis information for along with
+            the time to conversion (-1 for no conversion)
+    """
+    if not 'CONVTIME' in DXARM_REG:
+        get_time_to_conversion()
+
+    merged = pd.merge(data, DXARM_REG, on=['RID', 'VISCODE2'],
+                      how='inner')
+
+    cols = []
+    for column in data.columns:
+        if column in merged.columns:
+            cols.append(column)
+
+    cols.extend(['DXCHANGE', 'DXBASELINE', 'CONVTIME'])
+
+    merged = merged[cols]
+    merged.loc[merged['DXCHANGE'].isin([1, 7, 9]), 'DX'] = 'NL'
+    merged.loc[merged['DXCHANGE'].isin([2, 4, 8]), 'DX'] = 'MCI'
+    merged.loc[merged['DXCHANGE'].isin([3, 5, 6]), 'DX'] = 'AD'
+
+    return merged
+
+def get_time_to_conversion():
     """
     Keyword Arguments:
     data -- Data Frame with EHR info.
@@ -147,21 +174,37 @@ def get_time_to_conversion(data):
     If no conversion is seen, then value = -1
 
     """
-    if not 'DX' in data:
-        data = get_dx(data)
+    DXARM_REG['CONVTIME'] = -1
+    grouped = DXARM_REG.groupby('RID', as_index=False)
+    patients = sorted(grouped.indices.keys())
 
-    data['convtime'] = -1
-        
-    for patient in data.RID:
-        visits = data[data['RID'] == patient]
-        dx = DXARM_REG[DXARM_REG['RID'] == patient]
-        for visit in visits:
-            cur = visit.EXAMDATE
-            if visit['DX'] == 'NL':
-                if NL_MCI in dx.DXCHANGE.values:
-                    pass
-                
+    for patient in patients:
+        visits = grouped.get_group(patient).sort('EXAMDATE')
+        dxchange = visits['DXCHANGE']
 
+        if MCI_AD in dxchange.values:
+            arg_idx = list(dxchange).index(MCI_AD)
+            idx = dxchange.index[arg_idx]
+            dx_date = pd.to_datetime(DXARM_REG.loc[idx, 'EXAMDATE'])
+            for vis_idx in visits.index[:arg_idx]:
+                cur_date = pd.to_datetime(DXARM_REG.loc[vis_idx, 'EXAMDATE'])
+                DXARM_REG.loc[vis_idx, 'CONVTIME'] = ((dx_date.year-
+                                                       cur_date.year)*12
+                                                      +
+                                                      (dx_date.month-
+                                                       cur_date.month))
+
+        if NL_MCI in dxchange.values:
+            arg_idx = list(dxchange).index(NL_MCI)
+            idx = dxchange.index[arg_idx]
+            dx_date = pd.to_datetime(DXARM_REG.loc[idx, 'EXAMDATE'])
+            for vis_idx in visits.index[:arg_idx]:
+                cur_date = pd.to_datetime(DXARM_REG.loc[vis_idx, 'EXAMDATE'])
+                DXARM_REG.loc[vis_idx, 'CONVTIME'] = ((dx_date.year-
+                                                       cur_date.year)*12
+                                                      +
+                                                      (dx_date.month-
+                                                       cur_date.month))
 
 def get_baseline_classes(data, phase=''):
     """

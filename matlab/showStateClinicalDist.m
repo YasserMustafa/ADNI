@@ -10,7 +10,7 @@ function [counts, yy] = showStateClinicalDist(clinVar, idx, path, K, name)
 
 %%
 
-folds = size(path, 2);
+folds = numel(path);
 yy = unique(cell2mat(clinVar')');
 counts = zeros(numel(yy), K, folds);
 
@@ -52,6 +52,7 @@ figure;
 errorbar(1:K, avg, stdev);
 xlabel('HMM State');
 ylabel('Mean Clinical Score');
+xlim([0 K+1])
 title(name);
 
 end
